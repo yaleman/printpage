@@ -142,7 +142,9 @@ def parse_lpoptions_values(output: str) -> dict[str, str]:
     return values
 
 
-def parse_lpoptions_choices(output: str) -> dict[str, dict[str, str | list[str] | None]]:
+def parse_lpoptions_choices(
+    output: str,
+) -> dict[str, dict[str, str | list[str] | None]]:
     parsed: dict[str, dict[str, str | list[str] | None]] = {}
 
     for raw_line in output.splitlines():
@@ -278,7 +280,9 @@ def build_live_config(
     )
 
 
-def get_live_config(queue_name: str) -> tuple[PrinterConfig, dict[str, dict[str, str | list[str] | None]]]:
+def get_live_config(
+    queue_name: str,
+) -> tuple[PrinterConfig, dict[str, dict[str, str | list[str] | None]]]:
     values = get_queue_values(queue_name)
     choices = get_queue_choices(queue_name)
     live_config = build_live_config(queue_name, values, choices)
@@ -298,7 +302,9 @@ def serialize_option_choices(
 def config_response(selected_queue: str | None = None) -> dict:
     queues, default_queue = get_available_queues()
     saved_config = resolve_saved_config()
-    queue_name = selected_queue or saved_config.queue_name or default_queue or DEFAULT_QUEUE_NAME
+    queue_name = (
+        selected_queue or saved_config.queue_name or default_queue or DEFAULT_QUEUE_NAME
+    )
     live_config, option_choices = get_live_config(queue_name)
 
     return {
@@ -329,7 +335,7 @@ def apply_printer_config(config: PrinterConfig) -> subprocess.CompletedProcess[s
 
 
 def render_label_html(data: LabelRequest) -> str:
-    template = templates.get_template("label.html")
+    template = templates.get_template("labels/label.html")
     page_dimensions = label_dimensions_mm(resolve_saved_config().page_size)
     return template.render(
         title=data.title,

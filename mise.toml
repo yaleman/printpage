@@ -1,0 +1,9 @@
+[tools]
+uv = "latest"
+
+[tasks.run_container]
+description = "Build and run the local Docker image"
+run = [
+  "docker build -t printpage:local .",
+  "docker run --rm -it -p 8000:8000 --name printpage-local printpage:local",
+]

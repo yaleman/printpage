@@ -39,6 +39,23 @@ Install dependencies with `uv`, then run the app with Uvicorn:
 uv run uvicorn printpage:app --host 0.0.0.0 --port 8000
 ```
 
+## Running With Docker
+
+Build and run the local container with `mise`:
+
+```sh
+mise run run_container
+```
+
+Or run the equivalent Docker commands directly:
+
+```sh
+docker build -t printpage:local .
+docker run --rm -it -p 8000:8000 printpage:local
+```
+
+This container is aimed at local app startup and PDF preview. Real printer administration still depends on CUPS access and `sudo /usr/sbin/lpadmin` in the runtime environment.
+
 ## Printer Administration
 
 The app is designed to manage a local CUPS printer queue.

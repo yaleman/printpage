@@ -1,0 +1,19 @@
+{
+  "profiles": [
+    {
+      "body": null,
+      "cut_every": 1,
+      "height_mm": 29.0,
+      "id": "c6a7849efbad41caabae9275a96deb14",
+      "is_continuous": false,
+      "name": "Default label",
+      "quality": "BrQuality",
+      "quantity": 1,
+      "subtitle": null,
+      "title": "New label",
+      "width_mm": 62.0
+    }
+  ],
+  "queue_name": "QL700",
+  "selected_profile_id": "c6a7849efbad41caabae9275a96deb14"
+}

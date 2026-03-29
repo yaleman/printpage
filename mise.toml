@@ -10,7 +10,14 @@ run = [
 
 
 [tasks.check]
-depends = ["ruff", "ty", "pytest"]
+depends = ["build_css", "ruff", "ty", "pytest"]
+
+[tasks.build_css]
+description = "Install frontend tooling and compile Tailwind CSS"
+run = [
+  "pnpm install --frozen-lockfile",
+  "pnpm build:css",
+]
 
 [tasks.ruff]
 description = "Run ruff for linting and formatting"

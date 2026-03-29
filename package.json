@@ -1,0 +1,11 @@
+{
+	"devDependencies": {
+		"@tailwindcss/cli": "^4.2.2",
+		"tailwindcss": "^4.2.2"
+	},
+	"private": true,
+	"scripts": {
+		"build:css": "pnpm exec tailwindcss -i ./printpage/assets/app.css -o ./printpage/static/app.css --minify",
+		"watch:css": "pnpm exec tailwindcss -i ./printpage/assets/app.css -o ./printpage/static/app.css --watch"
+	}
+}

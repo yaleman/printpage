@@ -4,655 +4,352 @@
     <meta charset="utf-8">
     <title>Label Printer</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-    :root {
-      color-scheme: light dark;
-    }
-
-    body {
-      font-family: sans-serif;
-      margin: 0;
-      padding: 1rem;
-      line-height: 1.4;
-    }
-
-    .topbar,
-    .topbar-left,
-    .actions,
-    .form-row,
-    .row-toolbar,
-    .checkbox-cluster {
-      display: flex;
-      gap: 0.75rem;
-      align-items: center;
-    }
-
-    .topbar {
-      justify-content: space-between;
-      margin-bottom: 1rem;
-      flex-wrap: wrap;
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 430px 1fr;
-      gap: 1rem;
-      min-height: 85vh;
-    }
-
-    .panel {
-      border: 1px solid #8884;
-      border-radius: 8px;
-      padding: 1rem;
-    }
-
-    .stack {
-      display: grid;
-      gap: 0.75rem;
-    }
-
-    label {
-      display: block;
-      font-weight: 600;
-    }
-
-    input,
-    textarea,
-    select,
-    button {
-      width: 100%;
-      box-sizing: border-box;
-      margin-top: 0.25rem;
-      padding: 0.6rem;
-      font: inherit;
-    }
-
-    textarea {
-      min-height: 4rem;
-      resize: vertical;
-    }
-
-    .checkbox-row {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-    }
-
-    .checkbox-row input,
-    .checkbox-cluster input {
-      width: auto;
-      margin: 0;
-    }
-
-    .checkbox-cluster {
-      flex-wrap: wrap;
-      margin-top: 0.25rem;
-    }
-
-    .section {
-      border-top: 1px solid #8884;
-      padding-top: 0.75rem;
-      margin-top: 0.75rem;
-    }
-
-    .section h2 {
-      margin: 0 0 0.5rem;
-      font-size: 1rem;
-    }
-
-    .actions {
-      margin-top: 0.5rem;
-      flex-wrap: wrap;
-    }
-
-    .actions button,
-    .row-toolbar button {
-      flex: 1 1 0;
-      cursor: pointer;
-    }
-
-    .row-card {
-      border: 1px solid #8884;
-      border-radius: 8px;
-      padding: 0.75rem;
-      display: grid;
-      gap: 0.75rem;
-      background: color-mix(in srgb, Canvas 96%, transparent);
-    }
-
-    .row-toolbar {
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 0.5rem;
-    }
-
-    .row-title {
-      margin: 0;
-      font-size: 0.95rem;
-      font-weight: 700;
-    }
-
-    .row-delete {
-      width: auto;
-      min-width: 5rem;
-      margin-top: 0;
-    }
-
-    .status {
-      margin-top: 1rem;
-      min-height: 1.5rem;
-      white-space: pre-wrap;
-    }
-
-    iframe {
-      width: 100%;
-      height: 82vh;
-      border: 1px solid #8884;
-      border-radius: 8px;
-      background: white;
-    }
-
-    .nav-link {
-      color: inherit;
-      text-decoration: none;
-      font-weight: 600;
-    }
-
-    .small {
-      font-size: 0.9rem;
-      opacity: 0.8;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 1.25rem;
-    }
-
-    @media (max-width: 980px) {
-      .layout {
-        grid-template-columns: 1fr;
-      }
-
-      iframe {
-        height: 60vh;
-      }
-
-      .form-row {
-        display: grid;
-        gap: 0.75rem;
-      }
-    }
-  </style>
+    <link rel="stylesheet" href="/static/app.css">
+    <script defer src="/static/app.js"></script>
   </head>
-  <body>
-    <div class="topbar">
-      <div class="topbar-left">
-        <select id="profile-picker" aria-label="Label profiles"></select>
-        <button type="button" id="new-profile-button">New profile</button>
-      </div>
-      <a class="nav-link" href="/config">Printer settings</a>
-    </div>
+  <body class="h-screen overflow-hidden">
+    <div class="flex h-screen flex-col">
+      <header class="flex h-14 shrink-0 items-center justify-between border-b border-stone-200 bg-stone-50 px-4">
+        <div class="flex min-w-0 items-center gap-2">
+          <label class="sr-only" for="profile-picker">Label profiles</label>
+          <select
+            id="profile-picker"
+            aria-label="Label profiles"
+            class="app-input w-56 bg-white"
+          ></select>
+          <button type="button" id="new-profile-button" class="nav-button nav-button--secondary">
+            New
+          </button>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" id="save-button" class="nav-button nav-button--secondary">
+            Save
+          </button>
+          <button type="button" id="delete-button" class="nav-button nav-button--secondary">
+            Delete
+          </button>
+          <button type="button" id="preview-button" class="nav-button nav-button--secondary">
+            Preview
+          </button>
+          <button type="button" id="print-button" class="nav-button nav-button--primary">
+            Print
+          </button>
+          <a href="/config" class="nav-button nav-button--secondary">Printer settings</a>
+        </div>
+      </header>
 
-    <div class="layout">
-      <div class="panel">
-        <form id="label-form">
-          <div class="stack">
-            <label for="name">Profile name</label>
-            <input id="name" name="name" maxlength="100" required>
-
-            <div class="form-row">
-              <label for="width_mm">
-                Dimensions (mm)
-                <input id="width_mm" name="width_mm" type="number" min="0.1" step="0.1" required> x
-              </label>
-
-              <label for="height_mm">
-                <!-- <span id="height-label-text">Height (mm)</span> -->
-                <input id="height_mm" name="height_mm" type="number" min="0.1" step="0.1" required>
-              </label>
-            </div>
-
-            <label class="checkbox-row" for="is_continuous">
-              <input id="is_continuous" name="is_continuous" type="checkbox">
-              <span>Continuous label stock</span>
-            </label>
-
-            <div class="form-row">
-              <label for="quality">
-                Quality
-                <select id="quality" name="quality">
-                  <option value="BrQuality">BrQuality</option>
-                  <option value="BrSpeed">BrSpeed</option>
-                </select>
-              </label>
-
-              <label for="cut_every">
-                Cut every
-                <input id="cut_every" name="cut_every" type="number" min="1" step="1" value="1" required>
-              </label>
-            </div>
-
-            <label for="quantity">Quantity</label>
-            <input id="quantity" name="quantity" type="number" min="1" step="1" value="1" required>
-
-            <div class="section">
-              <h2>Border</h2>
-
-              <label class="checkbox-row" for="border_enabled">
-                <input id="border_enabled" name="border_enabled" type="checkbox">
-                <span>Show outside border</span>
-              </label>
-
-              <div class="form-row">
-                <label for="border_thickness_mm">
-                  Thickness (mm)
-                  <input id="border_thickness_mm" name="border_thickness_mm" type="number" min="0.1" step="0.1" value="0.5" required>
-                </label>
-
-                <label for="border_inset_mm">
-                  Distance from edge (mm)
-                  <input id="border_inset_mm" name="border_inset_mm" type="number" min="0" step="0.1" value="1" required>
-                </label>
-
-                <label for="border_radius_mm">
-                  Corner radius (mm)
-                  <input id="border_radius_mm" name="border_radius_mm" type="number" min="0" step="0.1" value="1.5" required>
-                </label>
+      <main class="min-h-0 flex-1 overflow-hidden p-3">
+        <div class="grid h-full min-h-0 grid-cols-[35rem_minmax(0,1fr)] gap-3">
+          <section class="panel-card flex min-h-0 flex-col overflow-hidden">
+            <div class="flex items-center justify-between border-b border-stone-200 px-4 py-3">
+              <div>
+                <h1 class="text-sm font-semibold tracking-[0.2em] text-stone-900 uppercase">Label editor</h1>
+                <p id="editor-title" class="mt-1 text-xs text-stone-500">Editing saved profile</p>
+              </div>
+              <div class="flex gap-1 rounded-lg border border-stone-200 bg-stone-100 p-1">
+                <button
+                  type="button"
+                  data-tab-button="profile"
+                  data-state="on"
+                  aria-selected="true"
+                  class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-white data-[state=on]:bg-white data-[state=on]:text-stone-900"
+                >
+                  Profile
+                </button>
+                <button
+                  type="button"
+                  data-tab-button="content"
+                  data-state="off"
+                  aria-selected="false"
+                  class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-white data-[state=on]:bg-white data-[state=on]:text-stone-900"
+                >
+                  Content
+                </button>
               </div>
             </div>
 
-            <div class="section">
-              <div class="row-toolbar">
-                <h2>Rows</h2>
-                <button type="button" id="add-row-button">Add row</button>
+            <div class="min-h-0 flex-1 overflow-hidden">
+              <div data-tab-panel="profile" class="h-full overflow-auto p-3">
+                <div class="grid gap-3">
+                  <section class="rounded-xl border border-stone-200 bg-stone-50 p-3">
+                    <label class="app-label" for="name">Profile name</label>
+                    <input
+                      id="name"
+                      name="name"
+                      maxlength="100"
+                      required
+                      data-autopreview
+                      class="app-input"
+                    >
+                  </section>
+
+                  <section class="rounded-xl border border-stone-200 bg-stone-50 p-3">
+                    <div class="mb-3 flex items-center justify-between">
+                      <div>
+                        <h2 class="text-sm font-semibold text-stone-900">Stock</h2>
+                        <p class="text-xs text-stone-500">Dimensions and media behavior</p>
+                      </div>
+                      <button
+                        type="button"
+                        id="is-continuous-toggle"
+                        data-state="off"
+                        aria-pressed="false"
+                        class="rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:border-stone-300 data-[state=off]:bg-white data-[state=off]:text-stone-600 data-[state=on]:border-stone-900 data-[state=on]:bg-stone-900 data-[state=on]:text-white"
+                      >
+                        Continuous stock
+                      </button>
+                      <input id="is_continuous" name="is_continuous" type="checkbox" class="hidden">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                      <label>
+                        <span class="app-label">Width (mm)</span>
+                        <input
+                          id="width_mm"
+                          name="width_mm"
+                          type="number"
+                          min="0.1"
+                          step="0.1"
+                          required
+                          data-autopreview
+                          class="app-input"
+                        >
+                      </label>
+                      <label>
+                        <span id="height-label-text" class="app-label">Height (mm)</span>
+                        <input
+                          id="height_mm"
+                          name="height_mm"
+                          type="number"
+                          min="0.1"
+                          step="0.1"
+                          required
+                          data-autopreview
+                          class="app-input"
+                        >
+                      </label>
+                    </div>
+                  </section>
+
+                  <section class="rounded-xl border border-stone-200 bg-stone-50 p-3">
+                    <div class="mb-3">
+                      <h2 class="text-sm font-semibold text-stone-900">Print run</h2>
+                      <p class="text-xs text-stone-500">Queue options stored with this profile</p>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                      <label>
+                        <span class="app-label">Quality</span>
+                        <select id="quality" name="quality" data-autopreview class="app-input pr-8">
+                          <option value="BrQuality">BrQuality</option>
+                          <option value="BrSpeed">BrSpeed</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span class="app-label">Cut every</span>
+                        <input
+                          id="cut_every"
+                          name="cut_every"
+                          type="number"
+                          min="1"
+                          step="1"
+                          value="1"
+                          required
+                          data-autopreview
+                          class="app-input"
+                        >
+                      </label>
+                      <label>
+                        <span class="app-label">Quantity</span>
+                        <input
+                          id="quantity"
+                          name="quantity"
+                          type="number"
+                          min="1"
+                          step="1"
+                          value="1"
+                          required
+                          data-autopreview
+                          class="app-input"
+                        >
+                      </label>
+                    </div>
+                  </section>
+
+                  <section class="rounded-xl border border-stone-200 bg-stone-50 p-3">
+                    <div class="mb-3 flex items-center justify-between">
+                      <div>
+                        <h2 class="text-sm font-semibold text-stone-900">Border</h2>
+                        <p class="text-xs text-stone-500">Outer stroke around label content</p>
+                      </div>
+                      <button
+                        type="button"
+                        id="border-enabled-toggle"
+                        data-state="off"
+                        aria-pressed="false"
+                        class="rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:border-stone-300 data-[state=off]:bg-white data-[state=off]:text-stone-600 data-[state=on]:border-stone-900 data-[state=on]:bg-stone-900 data-[state=on]:text-white"
+                      >
+                        Border on
+                      </button>
+                      <input id="border_enabled" name="border_enabled" type="checkbox" class="hidden">
+                    </div>
+
+                    <div id="border-fields" class="grid grid-cols-3 gap-3 transition">
+                      <label>
+                        <span class="app-label">Thickness (mm)</span>
+                        <input
+                          id="border_thickness_mm"
+                          name="border_thickness_mm"
+                          type="number"
+                          min="0.1"
+                          step="0.1"
+                          value="0.5"
+                          required
+                          data-autopreview
+                          class="app-input"
+                        >
+                      </label>
+                      <label>
+                        <span class="app-label">Inset (mm)</span>
+                        <input
+                          id="border_inset_mm"
+                          name="border_inset_mm"
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value="1"
+                          required
+                          data-autopreview
+                          class="app-input"
+                        >
+                      </label>
+                      <label>
+                        <span class="app-label">Radius (mm)</span>
+                        <input
+                          id="border_radius_mm"
+                          name="border_radius_mm"
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value="1.5"
+                          required
+                          data-autopreview
+                          class="app-input"
+                        >
+                      </label>
+                    </div>
+                  </section>
+                </div>
               </div>
-              <div id="rows-container" class="stack"></div>
+
+              <div data-tab-panel="content" class="hidden h-full overflow-hidden p-3">
+                <div class="grid h-full min-h-0 grid-cols-[13rem_minmax(0,1fr)] gap-3">
+                  <aside class="flex min-h-0 flex-col rounded-xl border border-stone-200 bg-stone-50">
+                    <div class="flex items-center justify-between border-b border-stone-200 px-3 py-2">
+                      <div>
+                        <h2 class="text-sm font-semibold text-stone-900">Rows</h2>
+                        <p class="text-[11px] text-stone-500">Auto-spaced on print</p>
+                      </div>
+                      <button type="button" id="add-row-button" class="nav-button nav-button--secondary">
+                        Add
+                      </button>
+                    </div>
+                    <div id="row-list" class="min-h-0 flex-1 space-y-2 overflow-auto p-2"></div>
+                  </aside>
+
+                  <section class="flex min-h-0 flex-col rounded-xl border border-stone-200 bg-stone-50">
+                    <div class="border-b border-stone-200 px-3 py-2">
+                      <h2 class="text-sm font-semibold text-stone-900">Active row</h2>
+                    </div>
+                    <div class="flex min-h-0 flex-1 flex-col gap-3 p-3">
+                      <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
+                        <div class="flex flex-wrap gap-2">
+                          <div class="flex flex-wrap gap-1 rounded-lg border border-stone-200 bg-white p-1">
+                            <button
+                              type="button"
+                              data-row-level="normal"
+                              data-state="on"
+                              aria-pressed="true"
+                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white"
+                            >
+                              Body
+                            </button>
+                            <button type="button" data-row-level="h1" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H1</button>
+                            <button type="button" data-row-level="h2" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H2</button>
+                            <button type="button" data-row-level="h3" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H3</button>
+                            <button type="button" data-row-level="h4" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H4</button>
+                            <button type="button" data-row-level="h5" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H5</button>
+                            <button type="button" data-row-level="h6" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H6</button>
+                          </div>
+
+                          <div class="flex gap-1 rounded-lg border border-stone-200 bg-white p-1">
+                            <button type="button" data-row-alignment="left" data-state="on" aria-pressed="true" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">L</button>
+                            <button type="button" data-row-alignment="center" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">C</button>
+                            <button type="button" data-row-alignment="right" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">R</button>
+                            <button type="button" data-row-alignment="justify" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">J</button>
+                          </div>
+                        </div>
+
+                        <div class="flex gap-1 rounded-lg border border-stone-200 bg-white p-1">
+                          <button type="button" id="row-bold-button" data-state="off" aria-pressed="false" class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">B</button>
+                          <button type="button" id="row-italic-button" data-state="off" aria-pressed="false" class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">I</button>
+                        </div>
+                      </div>
+
+                      <label class="flex min-h-0 flex-1 flex-col">
+                        <span class="app-label">Text</span>
+                        <textarea
+                          id="row-text"
+                          maxlength="300"
+                          required
+                          class="min-h-0 flex-1 resize-none rounded-xl border border-stone-300 bg-white px-3 py-3 text-sm leading-6 text-stone-900 shadow-sm focus:border-stone-900 focus:outline-none"
+                        ></textarea>
+                      </label>
+
+                      <div class="flex items-center justify-between">
+                        <p id="row-meta" class="text-xs text-stone-500">1 row on label</p>
+                        <button type="button" id="delete-row-button" class="nav-button nav-button--secondary">
+                          Delete row
+                        </button>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div class="actions">
-            <button type="button" id="save-button">Save profile</button>
-            <button type="button" id="delete-button">Delete profile</button>
-          </div>
+            <div class="flex items-center justify-between border-t border-stone-200 bg-stone-50 px-4 py-3 text-xs">
+              <p id="general-status" data-state="idle" class="text-stone-500 data-[state=error]:text-red-600">
+                Waiting for profile data...
+              </p>
+              <p class="text-stone-400">Rows auto-space when rendered to PDF.</p>
+            </div>
+          </section>
 
-          <div class="actions">
-            <button type="submit">Preview PDF</button>
-            <button type="button" id="print-button">Print</button>
-          </div>
+          <section class="panel-card flex min-h-0 flex-col overflow-hidden">
+            <div class="flex items-center justify-between border-b border-stone-200 px-4 py-3">
+              <div>
+                <h2 class="text-sm font-semibold uppercase tracking-[0.16em] text-stone-900">Preview</h2>
+                <p id="preview-meta" class="mt-1 text-xs text-stone-500">62 x 29 mm / Qty 1</p>
+              </div>
+              <div class="text-right">
+                <p id="preview-status" data-state="idle" class="text-xs text-stone-500 data-[state=error]:text-red-600">
+                  Waiting for preview...
+                </p>
+                <p id="preview-hint" class="mt-1 text-[11px] uppercase tracking-[0.16em] text-stone-400">
+                  Auto-preview
+                </p>
+              </div>
+            </div>
 
-          <div class="status" id="status"></div>
-        </form>
-
-        <p class="small">
-          Rows are spaced automatically on the label. Preview and print both use the current form values, including unsaved row edits.
-        </p>
-      </div>
-
-      <div class="panel">
-        <iframe id="preview-frame" title="PDF preview"></iframe>
-      </div>
+            <div class="relative min-h-0 flex-1 bg-white">
+              <iframe id="preview-frame" title="PDF preview" class="invisible h-full w-full bg-white"></iframe>
+              <div id="preview-overlay" data-state="idle" class="absolute inset-0 flex items-center justify-center bg-white/92 px-12 text-center text-sm text-stone-500 data-[state=error]:text-red-600">
+                <p id="preview-overlay-text">Loading profile...</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
     </div>
-
-    <template id="row-template">
-      <div class="row-card">
-        <div class="row-toolbar">
-          <p class="row-title">Text row</p>
-          <button type="button" class="row-delete">Delete row</button>
-        </div>
-
-        <label>
-          Text
-          <textarea class="row-text" maxlength="300" required></textarea>
-        </label>
-
-        <div class="form-row">
-          <label>
-            Style
-            <select class="row-level">
-              <option value="normal">Normal</option>
-              <option value="h1">H1</option>
-              <option value="h2">H2</option>
-              <option value="h3">H3</option>
-              <option value="h4">H4</option>
-              <option value="h5">H5</option>
-              <option value="h6">H6</option>
-            </select>
-          </label>
-
-          <label>
-            Alignment
-            <select class="row-alignment">
-              <option value="left">Left</option>
-              <option value="center">Centre</option>
-              <option value="right">Right</option>
-              <option value="justify">Justify</option>
-            </select>
-          </label>
-        </div>
-
-        <div class="checkbox-cluster">
-          <label class="checkbox-row">
-            <input type="checkbox" class="row-bold">
-            <span>Bold</span>
-          </label>
-          <label class="checkbox-row">
-            <input type="checkbox" class="row-italic">
-            <span>Italic</span>
-          </label>
-        </div>
-      </div>
-    </template>
-
-    <script>
-    const DEFAULT_DRAFT = {
-      name: "Default label",
-      rows: [
-        {
-          text: "New label",
-          level: "h2",
-          bold: false,
-          italic: false,
-          alignment: "center",
-        },
-      ],
-      border: {
-        enabled: false,
-        thickness_mm: 0.5,
-        inset_mm: 1,
-        radius_mm: 1.5,
-      },
-      width_mm: 62,
-      height_mm: 29,
-      is_continuous: false,
-      cut_every: 1,
-      quality: "BrQuality",
-      quantity: 1,
-    };
-
-    const form = document.getElementById("label-form");
-    const profilePicker = document.getElementById("profile-picker");
-    const newProfileButton = document.getElementById("new-profile-button");
-    const saveButton = document.getElementById("save-button");
-    const deleteButton = document.getElementById("delete-button");
-    const printButton = document.getElementById("print-button");
-    const addRowButton = document.getElementById("add-row-button");
-    const previewFrame = document.getElementById("preview-frame");
-    const statusEl = document.getElementById("status");
-    const heightLabelText = document.getElementById("height-label-text");
-    const isContinuousInput = document.getElementById("is_continuous");
-    const rowsContainer = document.getElementById("rows-container");
-    const rowTemplate = document.getElementById("row-template");
-
-    let currentPdfBlobUrl = null;
-    let currentProfileId = null;
-    let currentState = null;
-
-    function setStatus(message, isError = false) {
-      statusEl.textContent = message;
-      statusEl.style.color = isError ? "crimson" : "";
-    }
-
-    function updateHeightLabel() {
-      heightLabelText.textContent = isContinuousInput.checked ? "Length (mm)" : "Height (mm)";
-    }
-
-    function rowCards() {
-      return Array.from(rowsContainer.querySelectorAll(".row-card"));
-    }
-
-    function updateRowDeleteButtons() {
-      const cards = rowCards();
-      cards.forEach((card, index) => {
-        const title = card.querySelector(".row-title");
-        const button = card.querySelector(".row-delete");
-        title.textContent = `Text row ${index + 1}`;
-        button.disabled = cards.length === 1;
-      });
-    }
-
-    function addRow(row = null) {
-      const content = rowTemplate.content.cloneNode(true);
-      const card = content.querySelector(".row-card");
-      card.querySelector(".row-text").value = row?.text ?? "";
-      card.querySelector(".row-level").value = row?.level ?? "normal";
-      card.querySelector(".row-alignment").value = row?.alignment ?? "left";
-      card.querySelector(".row-bold").checked = Boolean(row?.bold);
-      card.querySelector(".row-italic").checked = Boolean(row?.italic);
-      card.querySelector(".row-delete").addEventListener("click", () => {
-        card.remove();
-        updateRowDeleteButtons();
-      });
-      rowsContainer.appendChild(card);
-      updateRowDeleteButtons();
-    }
-
-    function replaceRows(rows) {
-      rowsContainer.innerHTML = "";
-      (rows && rows.length ? rows : DEFAULT_DRAFT.rows).forEach((row) => addRow(row));
-    }
-
-    function getRowsPayload() {
-      return rowCards().map((card) => ({
-        text: card.querySelector(".row-text").value.trim(),
-        level: card.querySelector(".row-level").value,
-        alignment: card.querySelector(".row-alignment").value,
-        bold: card.querySelector(".row-bold").checked,
-        italic: card.querySelector(".row-italic").checked,
-      }));
-    }
-
-    function getPayload() {
-      return {
-        name: document.getElementById("name").value.trim(),
-        rows: getRowsPayload(),
-        border: {
-          enabled: document.getElementById("border_enabled").checked,
-          thickness_mm: Number(document.getElementById("border_thickness_mm").value),
-          inset_mm: Number(document.getElementById("border_inset_mm").value),
-          radius_mm: Number(document.getElementById("border_radius_mm").value),
-        },
-        width_mm: Number(document.getElementById("width_mm").value),
-        height_mm: Number(document.getElementById("height_mm").value),
-        is_continuous: isContinuousInput.checked,
-        cut_every: Number(document.getElementById("cut_every").value),
-        quality: document.getElementById("quality").value,
-        quantity: Number(document.getElementById("quantity").value),
-      };
-    }
-
-    function fillForm(profile) {
-      document.getElementById("name").value = profile.name ?? "";
-      document.getElementById("width_mm").value = profile.width_mm;
-      document.getElementById("height_mm").value = profile.height_mm;
-      document.getElementById("quality").value = profile.quality;
-      document.getElementById("cut_every").value = profile.cut_every;
-      document.getElementById("quantity").value = profile.quantity;
-      document.getElementById("border_enabled").checked = Boolean(profile.border?.enabled);
-      document.getElementById("border_thickness_mm").value = profile.border?.thickness_mm ?? 0.5;
-      document.getElementById("border_inset_mm").value = profile.border?.inset_mm ?? 1;
-      document.getElementById("border_radius_mm").value = profile.border?.radius_mm ?? 1.5;
-      isContinuousInput.checked = Boolean(profile.is_continuous);
-      replaceRows(profile.rows);
-      updateHeightLabel();
-      deleteButton.disabled = !currentProfileId;
-    }
-
-    function renderProfilePicker(state) {
-      profilePicker.innerHTML = "";
-      state.profiles.forEach((profile) => {
-        const option = document.createElement("option");
-        option.value = profile.id;
-        option.textContent = profile.name;
-        if (profile.id === state.selected_profile_id) {
-          option.selected = true;
-        }
-        profilePicker.appendChild(option);
-      });
-    }
-
-    function selectedProfileFromState(state) {
-      return state.profiles.find((profile) => profile.id === state.selected_profile_id) || state.profiles[0];
-    }
-
-    function renderState(state) {
-      currentState = state;
-      renderProfilePicker(state);
-      const selectedProfile = selectedProfileFromState(state);
-      currentProfileId = selectedProfile ? selectedProfile.id : null;
-      if (selectedProfile) {
-        fillForm(selectedProfile);
-      }
-    }
-
-    function startNewProfile() {
-      currentProfileId = null;
-      profilePicker.value = currentState?.selected_profile_id || "";
-      fillForm(DEFAULT_DRAFT);
-      setStatus("Drafting a new profile.");
-    }
-
-    async function postJson(url, method, payload) {
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: payload ? JSON.stringify(payload) : null,
-      });
-
-      const contentType = response.headers.get("content-type") || "";
-      const result = contentType.includes("application/json")
-        ? await response.json()
-        : await response.text();
-
-      if (!response.ok) {
-        throw new Error(typeof result === "string" ? result : JSON.stringify(result, null, 2));
-      }
-
-      return result;
-    }
-
-    async function loadState() {
-      setStatus("Loading label profiles...");
-
-      try {
-        const state = await postJson("/api/state", "GET");
-        renderState(state);
-        setStatus("Profiles loaded.");
-      } catch (error) {
-        console.error(error);
-        setStatus(error.message, true);
-      }
-    }
-
-    async function previewPdf(event) {
-      if (event) {
-        event.preventDefault();
-      }
-
-      setStatus("Generating preview...");
-
-      try {
-        const response = await fetch("/labels.pdf", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(getPayload()),
-        });
-
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(`Preview failed: ${response.status} ${text}`);
-        }
-
-        const blob = await response.blob();
-        if (currentPdfBlobUrl) {
-          URL.revokeObjectURL(currentPdfBlobUrl);
-        }
-
-        currentPdfBlobUrl = URL.createObjectURL(blob);
-        previewFrame.src = currentPdfBlobUrl;
-        setStatus("Preview ready.");
-      } catch (error) {
-        console.error(error);
-        setStatus(error.message, true);
-      }
-    }
-
-    async function saveProfile() {
-      setStatus("Saving profile...");
-
-      try {
-        const method = currentProfileId ? "PUT" : "POST";
-        const url = currentProfileId ? `/api/profiles/${encodeURIComponent(currentProfileId)}` : "/api/profiles";
-        const state = await postJson(url, method, getPayload());
-        renderState(state);
-        setStatus("Profile saved.");
-      } catch (error) {
-        console.error(error);
-        setStatus(error.message, true);
-      }
-    }
-
-    async function deleteProfile() {
-      if (!currentProfileId) {
-        setStatus("Draft profile is not saved yet.", true);
-        return;
-      }
-
-      setStatus("Deleting profile...");
-
-      try {
-        const state = await postJson(`/api/profiles/${encodeURIComponent(currentProfileId)}`, "DELETE");
-        renderState(state);
-        setStatus("Profile deleted.");
-      } catch (error) {
-        console.error(error);
-        setStatus(error.message, true);
-      }
-    }
-
-    async function selectProfile(profileId) {
-      setStatus("Loading profile...");
-
-      try {
-        const state = await postJson(`/api/profiles/${encodeURIComponent(profileId)}/select`, "POST");
-        renderState(state);
-        setStatus("Profile loaded.");
-        await previewPdf();
-      } catch (error) {
-        console.error(error);
-        setStatus(error.message, true);
-      }
-    }
-
-    async function printLabel() {
-      setStatus("Applying printer settings and sending job...");
-
-      try {
-        const result = await postJson("/print", "POST", getPayload());
-        setStatus(`Print submitted:\n${JSON.stringify(result, null, 2)}`);
-      } catch (error) {
-        console.error(error);
-        setStatus(`Print failed: ${error.message}`, true);
-      }
-    }
-
-    form.addEventListener("submit", previewPdf);
-    saveButton.addEventListener("click", saveProfile);
-    deleteButton.addEventListener("click", deleteProfile);
-    newProfileButton.addEventListener("click", startNewProfile);
-    printButton.addEventListener("click", printLabel);
-    addRowButton.addEventListener("click", () => addRow());
-    profilePicker.addEventListener("change", async () => {
-      if (profilePicker.value) {
-        await selectProfile(profilePicker.value);
-      }
-    });
-    isContinuousInput.addEventListener("change", updateHeightLabel);
-
-    loadState().then(() => previewPdf());
-  </script>
   </body>
 </html>

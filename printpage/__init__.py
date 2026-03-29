@@ -1,7 +1,9 @@
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, Response
+from fastapi.staticfiles import StaticFiles
 
 from .models import LabelProfileInput, QueueConfig
 from .printer import get_available_queues
@@ -18,6 +20,9 @@ from .state import (
 from .printer import apply_profile_to_printer, submit_print_job
 
 app = FastAPI()
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/")

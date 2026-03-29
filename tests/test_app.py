@@ -103,6 +103,25 @@ def test_get_api_state_seeds_default_profile_without_printer_lookup(
     assert state.CONFIG_PATH.exists()
 
 
+def test_index_loads_compiled_assets(client: TestClient) -> None:
+    response = client.get("/")
+
+    assert response.status_code == 200
+    body = response.text
+    assert '/static/app.css' in body
+    assert '/static/app.js' in body
+
+
+def test_static_assets_are_served(client: TestClient) -> None:
+    css_response = client.get("/static/app.css")
+    js_response = client.get("/static/app.js")
+
+    assert css_response.status_code == 200
+    assert js_response.status_code == 200
+    assert "tailwindcss" in css_response.text
+    assert "previewPdf" in js_response.text
+
+
 def test_create_update_select_and_delete_profile(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

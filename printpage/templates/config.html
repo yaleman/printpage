@@ -1,184 +1,48 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <title>Printer Settings</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-    :root {
-      color-scheme: light dark;
-    }
-
-    body {
-      font-family: sans-serif;
-      margin: 0;
-      padding: 1rem;
-      line-height: 1.4;
-    }
-
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      margin-bottom: 1rem;
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: 360px 1fr;
-      gap: 1rem;
-    }
-
-    .panel {
-      border: 1px solid #8884;
-      border-radius: 8px;
-      padding: 1rem;
-    }
-
-    label {
-      display: block;
-      margin-top: 0.75rem;
-      font-weight: 600;
-    }
-
-    select,
-    button {
-      width: 100%;
-      box-sizing: border-box;
-      margin-top: 0.25rem;
-      padding: 0.6rem;
-      font: inherit;
-    }
-
-    .actions {
-      display: grid;
-      gap: 0.5rem;
-      margin-top: 1rem;
-    }
-
-    .status,
-    pre {
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
-    .status {
-      min-height: 1.5rem;
-      margin-top: 1rem;
-    }
-
-    .nav-link {
-      color: inherit;
-      text-decoration: none;
-      font-weight: 600;
-    }
-
-    @media (max-width: 900px) {
-      .layout {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
-    </head>
-    <body>
-        <div class="topbar">
-            <h1>Printer Settings</h1>
-            <a class="nav-link" href="/">Back to labels</a>
+  <head>
+    <meta charset="utf-8">
+    <title>Printer Settings</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/static/app.css">
+    <script defer src="/static/config.js"></script>
+  </head>
+  <body class="min-h-screen">
+    <main class="mx-auto max-w-6xl p-6">
+      <div class="mb-6 flex items-center justify-between">
+        <div>
+          <h1 class="text-xl font-semibold tracking-[0.16em] uppercase text-stone-900">Printer settings</h1>
+          <p class="mt-1 text-sm text-stone-500">Choose the active CUPS queue for print jobs.</p>
         </div>
+        <a href="/" class="nav-button nav-button--secondary">Back to labels</a>
+      </div>
 
-        <div class="layout">
-            <div class="panel">
-                <form id="config-form">
-                    <label for="queue_name">Queue</label>
-                    <select id="queue_name" name="queue_name"></select>
+      <div class="grid gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
+        <section class="panel-card p-4">
+          <form id="config-form" class="space-y-4">
+            <label class="block">
+              <span class="app-label">Queue</span>
+              <select id="queue_name" name="queue_name" class="app-input pr-8"></select>
+            </label>
 
-                    <div class="actions">
-                        <button type="submit">Save queue</button>
-                        <button type="button" id="refresh-button">Refresh queues</button>
-                    </div>
-
-                    <div class="status" id="status"></div>
-                </form>
+            <div class="grid gap-2">
+              <button type="submit" class="nav-button nav-button--primary w-full">Save queue</button>
+              <button type="button" id="refresh-button" class="nav-button nav-button--secondary w-full">
+                Refresh queues
+              </button>
             </div>
 
-            <div class="panel">
-                <h2>Current Queue State</h2>
-                <pre id="config-state">Loading...</pre>
-            </div>
-        </div>
+            <p id="status" data-state="idle" class="min-h-5 text-sm text-stone-500 data-[state=error]:text-red-600">
+              Loading queues...
+            </p>
+          </form>
+        </section>
 
-        <script>
-    const configForm = document.getElementById("config-form");
-    const queueSelect = document.getElementById("queue_name");
-    const refreshButton = document.getElementById("refresh-button");
-    const statusEl = document.getElementById("status");
-    const configStateEl = document.getElementById("config-state");
-
-    function setStatus(message, isError = false) {
-      statusEl.textContent = message;
-      statusEl.style.color = isError ? "crimson" : "";
-    }
-
-    function renderConfig(data) {
-      queueSelect.innerHTML = "";
-      (data.queues || []).forEach((queue) => {
-        const option = document.createElement("option");
-        option.value = queue;
-        option.textContent = queue;
-        if (queue === data.queue_name) {
-          option.selected = true;
-        }
-        queueSelect.appendChild(option);
-      });
-      configStateEl.textContent = JSON.stringify(data, null, 2);
-    }
-
-    async function fetchConfig(method = "GET", payload = null) {
-      const response = await fetch("/api/config", {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: payload ? JSON.stringify(payload) : null,
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(JSON.stringify(result, null, 2));
-      }
-      return result;
-    }
-
-    async function loadConfig() {
-      setStatus("Loading queues...");
-
-      try {
-        const result = await fetchConfig();
-        renderConfig(result);
-        setStatus("Queues loaded.");
-      } catch (error) {
-        console.error(error);
-        setStatus(error.message, true);
-      }
-    }
-
-    configForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      setStatus("Saving queue...");
-
-      try {
-        const result = await fetchConfig("POST", { queue_name: queueSelect.value });
-        renderConfig(result);
-        setStatus("Queue saved.");
-      } catch (error) {
-        console.error(error);
-        setStatus(error.message, true);
-      }
-    });
-
-    refreshButton.addEventListener("click", loadConfig);
-
-    loadConfig();
-  </script>
-    </body>
+        <section class="panel-card p-4">
+          <h2 class="text-sm font-semibold tracking-[0.16em] uppercase text-stone-900">Current queue state</h2>
+          <pre id="config-state" class="mt-4 overflow-auto rounded-xl bg-stone-950 p-4 font-mono text-sm leading-6 text-stone-100">Loading...</pre>
+        </section>
+      </div>
+    </main>
+  </body>
 </html>

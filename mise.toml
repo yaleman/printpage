@@ -10,7 +10,16 @@ run = [
 
 
 [tasks.check]
-depends = ["build_css", "ruff", "ty", "pytest"]
+depends = ["frontend", "ruff", "ty", "pytest"]
+
+[tasks.frontend]
+description = "Install frontend tooling, generate API artifacts, build assets, and run frontend checks"
+run = [
+  "pnpm install --frozen-lockfile",
+  "pnpm build:frontend",
+  "pnpm biome:check",
+  "pnpm typecheck:frontend",
+]
 
 [tasks.build_css]
 description = "Install frontend tooling and compile Tailwind CSS"

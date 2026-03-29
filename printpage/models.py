@@ -102,6 +102,19 @@ class QueueConfig(BaseModel):
         return self
 
 
+class QueueState(BaseModel):
+    queue_name: str = Field(..., min_length=1, max_length=200)
+    queues: list[str] = Field(default_factory=list)
+    default_queue: str | None = None
+
+
+class PrintJobResult(BaseModel):
+    ok: bool
+    queue: str
+    stdout: str = ""
+    stderr: str = ""
+
+
 def default_profile() -> LabelProfile:
     return LabelProfile(
         id=uuid4().hex,

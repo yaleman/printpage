@@ -1,0 +1,40 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.4.9/schema.json",
+	"files": {
+		"includes": ["frontend/**/*.ts", "package.json"]
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true,
+			"style": {
+				"noRestrictedGlobals": {
+					"level": "error",
+					"options": {
+						"deniedGlobals": {
+							"fetch": "Use the generated OpenAPI client instead.",
+							"Headers": "Use the generated OpenAPI client instead.",
+							"Request": "Use the generated OpenAPI client instead.",
+							"Response": "Use the generated OpenAPI client instead.",
+							"XMLHttpRequest": "Use the generated OpenAPI client instead."
+						}
+					}
+				}
+			}
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["frontend/client/**/*.ts"],
+			"assist": {
+				"enabled": false
+			},
+			"formatter": {
+				"enabled": false
+			},
+			"linter": {
+				"enabled": false
+			}
+		}
+	]
+}

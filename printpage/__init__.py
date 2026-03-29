@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from .models import LabelProfileInput, QueueConfig
+from .models import AppState, LabelProfileInput, PrintJobResult, QueueConfig, QueueState
 from .printer import get_available_queues
 from .rendering import html_to_pdf_bytes, render_label_html, templates
 from .state import (
@@ -26,81 +26,85 @@ print("Serving static files from:", STATIC_DIR, file=sys.stderr)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 def index() -> HTMLResponse:
     template = templates.get_template("index.html")
     return HTMLResponse(content=template.render(), status_code=200)
 
 
-@app.get("/config")
+@app.get("/config", include_in_schema=False)
 def config_page() -> HTMLResponse:
     template = templates.get_template("config.html")
     return HTMLResponse(content=template.render(), status_code=200)
 
 
-@app.get("/api/state")
-def get_state() -> dict:
-    return resolve_state().model_dump()
+@app.get("/api/state", response_model=AppState)
+def get_state() -> AppState:
+    return resolve_state()
 
 
-@app.post("/api/profiles")
-def create_profile_endpoint(profile: LabelProfileInput) -> dict:
-    return create_profile(profile).model_dump()
+@app.post("/api/profiles", response_model=AppState)
+def create_profile_endpoint(profile: LabelProfileInput) -> AppState:
+    return create_profile(profile)
 
 
-@app.put("/api/profiles/{profile_id}")
-def update_profile_endpoint(profile_id: str, profile: LabelProfileInput) -> dict:
+@app.put("/api/profiles/{profile_id}", response_model=AppState)
+def update_profile_endpoint(profile_id: str, profile: LabelProfileInput) -> AppState:
     try:
-        return update_profile(profile_id, profile).model_dump()
+        return update_profile(profile_id, profile)
     except KeyError as error:
         raise HTTPException(
             status_code=404, detail=f"Unknown profile: {profile_id}"
         ) from error
 
 
-@app.delete("/api/profiles/{profile_id}")
-def delete_profile_endpoint(profile_id: str) -> dict:
+@app.delete("/api/profiles/{profile_id}", response_model=AppState)
+def delete_profile_endpoint(profile_id: str) -> AppState:
     try:
-        return delete_profile(profile_id).model_dump()
+        return delete_profile(profile_id)
     except KeyError as error:
         raise HTTPException(
             status_code=404, detail=f"Unknown profile: {profile_id}"
         ) from error
 
 
-@app.post("/api/profiles/{profile_id}/select")
-def select_profile_endpoint(profile_id: str) -> dict:
+@app.post("/api/profiles/{profile_id}/select", response_model=AppState)
+def select_profile_endpoint(profile_id: str) -> AppState:
     try:
-        return select_profile(profile_id).model_dump()
+        return select_profile(profile_id)
     except KeyError as error:
         raise HTTPException(
             status_code=404, detail=f"Unknown profile: {profile_id}"
         ) from error
 
 
-@app.get("/api/config")
-def get_config() -> dict:
+@app.get("/api/config", response_model=QueueState)
+def get_config() -> QueueState:
     queues, default_queue = get_available_queues()
     state = resolve_state(default_queue)
-    return {
-        "queue_name": state.queue_name,
-        "queues": queues,
-        "default_queue": default_queue,
-    }
+    return QueueState(
+        queue_name=state.queue_name,
+        queues=queues,
+        default_queue=default_queue,
+    )
 
 
-@app.post("/api/config")
-def save_config(queue_config: QueueConfig) -> dict:
+@app.post("/api/config", response_model=QueueState)
+def save_config(queue_config: QueueConfig) -> QueueState:
     state = update_queue(queue_config)
     queues, default_queue = get_available_queues()
-    return {
-        "queue_name": state.queue_name,
-        "queues": queues,
-        "default_queue": default_queue,
-    }
+    return QueueState(
+        queue_name=state.queue_name,
+        queues=queues,
+        default_queue=default_queue,
+    )
 
 
-@app.post("/labels.pdf", response_class=Response)
+@app.post(
+    "/labels.pdf",
+    response_class=Response,
+    responses={200: {"content": {"application/pdf": {}}}},
+)
 def generate_label_pdf(profile: LabelProfileInput) -> Response:
     html = render_label_html(profile)
     pdf_bytes = html_to_pdf_bytes(html)
@@ -111,8 +115,8 @@ def generate_label_pdf(profile: LabelProfileInput) -> Response:
     )
 
 
-@app.post("/print")
-def print_label(profile: LabelProfileInput) -> dict[str, str | bool]:
+@app.post("/print", response_model=PrintJobResult)
+def print_label(profile: LabelProfileInput) -> PrintJobResult:
     state = resolve_state()
     apply_profile_to_printer(state.queue_name, profile)
     html = render_label_html(profile)
@@ -121,7 +125,9 @@ def print_label(profile: LabelProfileInput) -> dict[str, str | bool]:
     with NamedTemporaryFile(suffix=".pdf", delete=True) as tmp:
         tmp.write(pdf_bytes)
         tmp.flush()
-        return submit_print_job(state.queue_name, profile.quantity, tmp.name)
+        return PrintJobResult.model_validate(
+            submit_print_job(state.queue_name, profile.quantity, tmp.name)
+        )
 
 
 __all__ = ["app", "html_to_pdf_bytes", "render_label_html", "save_state"]

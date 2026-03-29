@@ -119,7 +119,32 @@ def test_static_assets_are_served(client: TestClient) -> None:
     assert css_response.status_code == 200
     assert js_response.status_code == 200
     assert "tailwindcss" in css_response.text
-    assert "previewPdf" in js_response.text
+    assert "axios" in js_response.text
+    assert "/labels.pdf" in js_response.text
+
+
+def test_openapi_schema_hides_html_pages_and_types_api_responses(
+    client: TestClient,
+) -> None:
+    response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert "/" not in payload["paths"]
+    assert "/config" not in payload["paths"]
+    assert payload["paths"]["/api/state"]["get"]["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"]["$ref"] == "#/components/schemas/AppState"
+    assert payload["paths"]["/api/config"]["get"]["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"]["$ref"] == "#/components/schemas/QueueState"
+    assert payload["paths"]["/print"]["post"]["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"]["$ref"] == "#/components/schemas/PrintJobResult"
+    assert payload["paths"]["/labels.pdf"]["post"]["responses"]["200"]["content"] == {
+        "application/pdf": {}
+    }
 
 
 def test_create_update_select_and_delete_profile(

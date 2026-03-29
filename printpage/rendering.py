@@ -6,7 +6,7 @@ from .models import LabelProfileInput
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = PACKAGE_DIR / "templates"
-LABEL_MARGIN_MM = 2.0
+LABEL_MARGIN_MM = 0.0
 
 templates = Environment(
     loader=FileSystemLoader(str(TEMPLATES_DIR)),

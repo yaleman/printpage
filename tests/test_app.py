@@ -239,7 +239,8 @@ def test_labels_pdf_uses_payload_dimensions(
 
     assert response.status_code == 200
     assert "size: 50mm 30mm;" in captured["html"]
-    assert "width: 46mm;" in captured["html"]
+    assert "margin: 0mm;" in captured["html"]
+    assert "width: 50mm;" in captured["html"]
     assert 'row--h2 row--center row--bold' in captured["html"]
     assert "hello" in captured["html"]
 

@@ -38,7 +38,6 @@ const previewFrame = document.getElementById("preview-frame");
 const previewOverlay = document.getElementById("preview-overlay");
 const previewOverlayText = document.getElementById("preview-overlay-text");
 const previewMeta = document.getElementById("preview-meta");
-const editorTitle = document.getElementById("editor-title");
 const tabButtons = Array.from(document.querySelectorAll("[data-tab-button]"));
 const tabPanels = Array.from(document.querySelectorAll("[data-tab-panel]"));
 const rowList = document.getElementById("row-list");
@@ -267,7 +266,6 @@ function fillForm(profile) {
   renderRowsUI();
   updatePreviewMeta(profile);
   deleteButton.disabled = !currentProfileId;
-  editorTitle.textContent = currentProfileId ? "Editing saved profile" : "Editing new profile";
 }
 
 function renderProfilePicker(state) {

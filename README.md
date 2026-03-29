@@ -2,12 +2,13 @@
 
 Small FastAPI app for generating label PDFs and sending them to a Brother label printer through CUPS.
 
+It may have gotten a little out of hand.
+
 ## Requirements
 
 - Linux
 - CUPS running locally
 - A configured printer queue
-- `uv` for Python environment management
 - Required CUPS commands available in `PATH` or at their system locations:
   - `lp`
   - `lpadmin`

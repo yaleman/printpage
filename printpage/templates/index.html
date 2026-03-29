@@ -10,13 +10,13 @@
   <body class="h-screen overflow-hidden">
     <div class="flex h-screen flex-col">
       <header class="flex h-14 shrink-0 items-center justify-between border-b border-stone-200 bg-stone-50 px-4">
-        <div class="flex min-w-0 items-center gap-2">
+        <div class="flex min-w-0 items-center gap-3">
+          <h1 class="text-sm font-semibold tracking-[0.2em] text-stone-900 uppercase">Label editor</h1>
           <label class="sr-only" for="profile-picker">Label profiles</label>
           <select
             id="profile-picker"
             aria-label="Label profiles"
-            class="app-input w-56 bg-white"
-          ></select>
+            class="app-input w-56 bg-white"></select>
           <button type="button" id="new-profile-button" class="nav-button nav-button--secondary">
             New
           </button>
@@ -41,19 +41,14 @@
       <main class="min-h-0 flex-1 overflow-hidden p-3">
         <div class="grid h-full min-h-0 grid-cols-[35rem_minmax(0,1fr)] gap-3">
           <section class="panel-card flex min-h-0 flex-col overflow-hidden">
-            <div class="flex items-center justify-between border-b border-stone-200 px-4 py-3">
-              <div>
-                <h1 class="text-sm font-semibold tracking-[0.2em] text-stone-900 uppercase">Label editor</h1>
-                <p id="editor-title" class="mt-1 text-xs text-stone-500">Editing saved profile</p>
-              </div>
+            <div class="flex items-center justify-end border-b border-stone-200 px-4 py-3">
               <div class="flex gap-1 rounded-lg border border-stone-200 bg-stone-100 p-1">
                 <button
                   type="button"
                   data-tab-button="profile"
                   data-state="on"
                   aria-selected="true"
-                  class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-white data-[state=on]:bg-white data-[state=on]:text-stone-900"
-                >
+                  class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-white data-[state=on]:bg-white data-[state=on]:text-stone-900">
                   Profile
                 </button>
                 <button
@@ -61,8 +56,7 @@
                   data-tab-button="content"
                   data-state="off"
                   aria-selected="false"
-                  class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-white data-[state=on]:bg-white data-[state=on]:text-stone-900"
-                >
+                  class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-white data-[state=on]:bg-white data-[state=on]:text-stone-900">
                   Content
                 </button>
               </div>
@@ -79,8 +73,7 @@
                       maxlength="100"
                       required
                       data-autopreview
-                      class="app-input"
-                    >
+                      class="app-input">
                   </section>
 
                   <section class="rounded-xl border border-stone-200 bg-stone-50 p-3">
@@ -94,8 +87,7 @@
                         id="is-continuous-toggle"
                         data-state="off"
                         aria-pressed="false"
-                        class="rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:border-stone-300 data-[state=off]:bg-white data-[state=off]:text-stone-600 data-[state=on]:border-stone-900 data-[state=on]:bg-stone-900 data-[state=on]:text-white"
-                      >
+                        class="rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:border-stone-300 data-[state=off]:bg-white data-[state=off]:text-stone-600 data-[state=on]:border-stone-900 data-[state=on]:bg-stone-900 data-[state=on]:text-white">
                         Continuous stock
                       </button>
                       <input id="is_continuous" name="is_continuous" type="checkbox" class="hidden">
@@ -112,8 +104,7 @@
                           step="0.1"
                           required
                           data-autopreview
-                          class="app-input"
-                        >
+                          class="app-input">
                       </label>
                       <label>
                         <span id="height-label-text" class="app-label">Height (mm)</span>
@@ -125,8 +116,7 @@
                           step="0.1"
                           required
                           data-autopreview
-                          class="app-input"
-                        >
+                          class="app-input">
                       </label>
                     </div>
                   </section>
@@ -155,8 +145,7 @@
                           value="1"
                           required
                           data-autopreview
-                          class="app-input"
-                        >
+                          class="app-input">
                       </label>
                       <label>
                         <span class="app-label">Quantity</span>
@@ -169,8 +158,7 @@
                           value="1"
                           required
                           data-autopreview
-                          class="app-input"
-                        >
+                          class="app-input">
                       </label>
                     </div>
                   </section>
@@ -186,8 +174,7 @@
                         id="border-enabled-toggle"
                         data-state="off"
                         aria-pressed="false"
-                        class="rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:border-stone-300 data-[state=off]:bg-white data-[state=off]:text-stone-600 data-[state=on]:border-stone-900 data-[state=on]:bg-stone-900 data-[state=on]:text-white"
-                      >
+                        class="rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:border-stone-300 data-[state=off]:bg-white data-[state=off]:text-stone-600 data-[state=on]:border-stone-900 data-[state=on]:bg-stone-900 data-[state=on]:text-white">
                         Border on
                       </button>
                       <input id="border_enabled" name="border_enabled" type="checkbox" class="hidden">
@@ -205,8 +192,7 @@
                           value="0.5"
                           required
                           data-autopreview
-                          class="app-input"
-                        >
+                          class="app-input">
                       </label>
                       <label>
                         <span class="app-label">Inset (mm)</span>
@@ -219,8 +205,7 @@
                           value="1"
                           required
                           data-autopreview
-                          class="app-input"
-                        >
+                          class="app-input">
                       </label>
                       <label>
                         <span class="app-label">Radius (mm)</span>
@@ -233,8 +218,7 @@
                           value="1.5"
                           required
                           data-autopreview
-                          class="app-input"
-                        >
+                          class="app-input">
                       </label>
                     </div>
                   </section>
@@ -269,29 +253,40 @@
                               data-row-level="normal"
                               data-state="on"
                               aria-pressed="true"
-                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white"
-                            >
+                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">
                               Body
                             </button>
-                            <button type="button" data-row-level="h1" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H1</button>
-                            <button type="button" data-row-level="h2" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H2</button>
-                            <button type="button" data-row-level="h3" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H3</button>
-                            <button type="button" data-row-level="h4" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H4</button>
-                            <button type="button" data-row-level="h5" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H5</button>
-                            <button type="button" data-row-level="h6" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H6</button>
+                            <button type="button" data-row-level="h1" data-state="off" aria-pressed="false"
+                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H1</button>
+                            <button type="button" data-row-level="h2" data-state="off" aria-pressed="false"
+                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H2</button>
+                            <button type="button" data-row-level="h3" data-state="off" aria-pressed="false"
+                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H3</button>
+                            <button type="button" data-row-level="h4" data-state="off" aria-pressed="false"
+                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H4</button>
+                            <button type="button" data-row-level="h5" data-state="off" aria-pressed="false"
+                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H5</button>
+                            <button type="button" data-row-level="h6" data-state="off" aria-pressed="false"
+                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H6</button>
                           </div>
 
                           <div class="flex gap-1 rounded-lg border border-stone-200 bg-white p-1">
-                            <button type="button" data-row-alignment="left" data-state="on" aria-pressed="true" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">L</button>
-                            <button type="button" data-row-alignment="center" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">C</button>
-                            <button type="button" data-row-alignment="right" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">R</button>
-                            <button type="button" data-row-alignment="justify" data-state="off" aria-pressed="false" class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">J</button>
+                            <button type="button" data-row-alignment="left" data-state="on" aria-pressed="true"
+                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">L</button>
+                            <button type="button" data-row-alignment="center" data-state="off" aria-pressed="false"
+                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">C</button>
+                            <button type="button" data-row-alignment="right" data-state="off" aria-pressed="false"
+                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">R</button>
+                            <button type="button" data-row-alignment="justify" data-state="off" aria-pressed="false"
+                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">J</button>
                           </div>
                         </div>
 
                         <div class="flex gap-1 rounded-lg border border-stone-200 bg-white p-1">
-                          <button type="button" id="row-bold-button" data-state="off" aria-pressed="false" class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">B</button>
-                          <button type="button" id="row-italic-button" data-state="off" aria-pressed="false" class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">I</button>
+                          <button type="button" id="row-bold-button" data-state="off" aria-pressed="false"
+                            class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">B</button>
+                          <button type="button" id="row-italic-button" data-state="off" aria-pressed="false"
+                            class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">I</button>
                         </div>
                       </div>
 
@@ -301,8 +296,7 @@
                           id="row-text"
                           maxlength="300"
                           required
-                          class="min-h-0 flex-1 resize-none rounded-xl border border-stone-300 bg-white px-3 py-3 text-sm leading-6 text-stone-900 shadow-sm focus:border-stone-900 focus:outline-none"
-                        ></textarea>
+                          class="min-h-0 flex-1 resize-none rounded-xl border border-stone-300 bg-white px-3 py-3 text-sm leading-6 text-stone-900 shadow-sm focus:border-stone-900 focus:outline-none"></textarea>
                       </label>
 
                       <div class="flex items-center justify-between">
@@ -343,7 +337,8 @@
 
             <div class="relative min-h-0 flex-1 bg-white">
               <iframe id="preview-frame" title="PDF preview" class="invisible h-full w-full bg-white"></iframe>
-              <div id="preview-overlay" data-state="idle" class="absolute inset-0 flex items-center justify-center bg-white/92 px-12 text-center text-sm text-stone-500 data-[state=error]:text-red-600">
+              <div id="preview-overlay" data-state="idle"
+                class="absolute inset-0 flex items-center justify-center bg-white/92 px-12 text-center text-sm text-stone-500 data-[state=error]:text-red-600">
                 <p id="preview-overlay-text">Loading profile...</p>
               </div>
             </div>

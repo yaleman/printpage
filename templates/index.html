@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Label Printer</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+    :root {
+      color-scheme: light dark;
+    }
+
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 1rem;
+      line-height: 1.4;
+    }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 1rem;
+      min-height: 90vh;
+    }
+
+    .panel {
+      border: 1px solid #8884;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    label {
+      display: block;
+      margin-top: 0.75rem;
+      font-weight: 600;
+    }
+
+    input,
+    textarea,
+    button {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 0.25rem;
+      padding: 0.6rem;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 8rem;
+      resize: vertical;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .actions button {
+      cursor: pointer;
+    }
+
+    .status {
+      margin-top: 1rem;
+      min-height: 1.5rem;
+      font-size: 0.95rem;
+      white-space: pre-wrap;
+    }
+
+    iframe {
+      width: 100%;
+      height: 85vh;
+      border: 1px solid #8884;
+      border-radius: 8px;
+      background: white;
+    }
+
+    .small {
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      iframe {
+        height: 60vh;
+      }
+    }
+  </style>
+    </head>
+    <body>
+        <h1>Label Printer</h1>
+
+        <div class="layout">
+            <div class="panel">
+                <form id="label-form">
+                    <label for="title">Title</label>
+                    <input id="title" name="title" maxlength="100" required value="hello">
+
+                    <label for="subtitle">Subtitle</label>
+                    <input id="subtitle" name="subtitle" maxlength="200" value="wombat division">
+
+                    <label for="body">Body</label>
+                    <textarea id="body" name="body" maxlength="1000">test label</textarea>
+
+                    <label for="copies">Copies</label>
+                    <input id="copies" name="copies" type="number" min="1" max="20" value="1">
+
+                    <div class="actions">
+                        <button type="submit">Preview PDF</button>
+                        <button type="button" id="print-button">Print</button>
+                    </div>
+
+                    <div class="status" id="status"></div>
+                </form>
+
+                <p class="small">
+                    Preview calls <code>/labels.pdf</code> and print calls <code>/print</code>.
+                </p>
+            </div>
+
+            <div class="panel">
+                <iframe id="preview-frame" title="PDF preview"></iframe>
+            </div>
+        </div>
+
+        <script>
+    const form = document.getElementById("label-form");
+    const previewFrame = document.getElementById("preview-frame");
+    const statusEl = document.getElementById("status");
+    const printButton = document.getElementById("print-button");
+
+    let currentPdfBlobUrl = null;
+
+    function getPayload() {
+      return {
+        title: document.getElementById("title").value.trim(),
+        subtitle: document.getElementById("subtitle").value.trim() || null,
+        body: document.getElementById("body").value.trim() || null,
+        copies: Number(document.getElementById("copies").value || 1),
+      };
+    }
+
+    function setStatus(message, isError = false) {
+      statusEl.textContent = message;
+      statusEl.style.color = isError ? "crimson" : "";
+    }
+
+    async function previewPdf(event) {
+      if (event) {
+        event.preventDefault();
+      }
+
+      const payload = getPayload();
+      setStatus("Generating preview...");
+
+      try {
+        const response = await fetch("/labels.pdf", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`Preview failed: ${response.status} ${text}`);
+        }
+
+        const blob = await response.blob();
+
+        if (currentPdfBlobUrl) {
+          URL.revokeObjectURL(currentPdfBlobUrl);
+        }
+
+        currentPdfBlobUrl = URL.createObjectURL(blob);
+        previewFrame.src = currentPdfBlobUrl;
+        setStatus("Preview ready.");
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message, true);
+      }
+    }
+
+    async function printLabel() {
+      const payload = getPayload();
+      setStatus("Sending to printer...");
+
+      try {
+        const response = await fetch("/print", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const contentType = response.headers.get("content-type") || "";
+        let result;
+
+        if (contentType.includes("application/json")) {
+          result = await response.json();
+        } else {
+          result = await response.text();
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            typeof result === "string" ? result : JSON.stringify(result, null, 2)
+          );
+        }
+
+        setStatus(
+          typeof result === "string"
+            ? `Print submitted:\n${result}`
+            : `Print submitted:\n${JSON.stringify(result, null, 2)}`
+        );
+      } catch (error) {
+        console.error(error);
+        setStatus(`Print failed: ${error.message}`, true);
+      }
+    }
+
+    form.addEventListener("submit", previewPdf);
+    printButton.addEventListener("click", printLabel);
+
+    previewPdf();
+  </script>
+    </body>
+</html>

@@ -1,0 +1,21 @@
+[project]
+name = "printpage"
+version = "0.1.0"
+description = "A simple web server for printing test pages on label printers"
+authors = [{ name = "James Hodgkinson", email = "james@terminaloutcomes.com" }]
+requires-python = ">=3.12"
+
+dependencies = [
+"fastapi>=0.135.2",
+"uvicorn>=0.42.0",
+"jinja2>=3.1.2",
+"weasyprint>=68.1",
+"uvicorn[standard]>=0.42.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["printpage"]

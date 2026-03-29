@@ -1,8 +1,10 @@
 import json
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from .models import AppState, LabelProfile, LabelProfileInput, QueueConfig, default_profile
-from .printer import get_default_queue_name
+from .printer import DEFAULT_QUEUE_NAME
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = REPO_ROOT / "printpage.json"
@@ -10,7 +12,7 @@ CONFIG_PATH = REPO_ROOT / "printpage.json"
 
 def build_default_state(queue_name: str | None = None) -> AppState:
     return AppState(
-        queue_name=queue_name or get_default_queue_name(),
+        queue_name=queue_name or DEFAULT_QUEUE_NAME,
         selected_profile_id=None,
         profiles=[default_profile()],
     )
@@ -20,16 +22,19 @@ def load_state() -> AppState | None:
     if not CONFIG_PATH.exists():
         return None
 
-    data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-    return AppState.model_validate(data)
+    try:
+        data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+        return AppState.model_validate(data)
+    except (json.JSONDecodeError, ValidationError):
+        return None
 
 
-def resolve_state() -> AppState:
+def resolve_state(queue_name: str | None = None) -> AppState:
     state = load_state()
     if state is not None:
         return state
 
-    state = build_default_state()
+    state = build_default_state(queue_name)
     save_state(state)
     return state
 

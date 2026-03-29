@@ -19,6 +19,8 @@ RUN apt-get update \
     shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
+RUN pip install --no-cache-dir "uvicorn[standard]" fastapi pydantic pillow jinja2 httpx click weasyprint
+
 FROM apt
 
 COPY pyproject.toml README.md /app/

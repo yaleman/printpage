@@ -5,5 +5,21 @@ uv = "latest"
 description = "Build and run the local Docker image"
 run = [
   "docker build -t printpage:local .",
-  "docker run --rm -it -p 8000:8000 --name printpage-local printpage:local",
+  "docker run --rm -it -p 8000:8000 --mount \"type=bind,src=$(pwd)/printpage.json,target=/app/printpage.json\" --name printpage-local printpage:local",
 ]
+
+
+[tasks.check]
+depends = ["ruff", "ty", "pytest"]
+
+[tasks.ruff]
+description = "Run ruff for linting and formatting"
+run = "uv run ruff check"
+
+[tasks.ty]
+description = "Run type checking"
+run = "uv run ty check"
+
+[tasks.pytest]
+description = "Run tests with pytest"
+run = "uv run pytest"

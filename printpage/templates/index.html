@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <title>Label Printer</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
+  <head>
+    <meta charset="utf-8">
+    <title>Label Printer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
     :root {
       color-scheme: light dark;
     }
@@ -19,7 +19,9 @@
     .topbar,
     .topbar-left,
     .actions,
-    .form-row {
+    .form-row,
+    .row-toolbar,
+    .checkbox-cluster {
       display: flex;
       gap: 0.75rem;
       align-items: center;
@@ -33,7 +35,7 @@
 
     .layout {
       display: grid;
-      grid-template-columns: 360px 1fr;
+      grid-template-columns: 430px 1fr;
       gap: 1rem;
       min-height: 85vh;
     }
@@ -66,7 +68,7 @@
     }
 
     textarea {
-      min-height: 8rem;
+      min-height: 4rem;
       resize: vertical;
     }
 
@@ -76,9 +78,26 @@
       align-items: center;
     }
 
-    .checkbox-row input {
+    .checkbox-row input,
+    .checkbox-cluster input {
       width: auto;
       margin: 0;
+    }
+
+    .checkbox-cluster {
+      flex-wrap: wrap;
+      margin-top: 0.25rem;
+    }
+
+    .section {
+      border-top: 1px solid #8884;
+      padding-top: 0.75rem;
+      margin-top: 0.75rem;
+    }
+
+    .section h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1rem;
     }
 
     .actions {
@@ -86,9 +105,37 @@
       flex-wrap: wrap;
     }
 
-    .actions button {
+    .actions button,
+    .row-toolbar button {
       flex: 1 1 0;
       cursor: pointer;
+    }
+
+    .row-card {
+      border: 1px solid #8884;
+      border-radius: 8px;
+      padding: 0.75rem;
+      display: grid;
+      gap: 0.75rem;
+      background: color-mix(in srgb, Canvas 96%, transparent);
+    }
+
+    .row-toolbar {
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .row-title {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    .row-delete {
+      width: auto;
+      min-width: 5rem;
+      margin-top: 0;
     }
 
     .status {
@@ -121,7 +168,7 @@
       font-size: 1.25rem;
     }
 
-    @media (max-width: 900px) {
+    @media (max-width: 980px) {
       .layout {
         grid-template-columns: 1fr;
       }
@@ -136,97 +183,184 @@
       }
     }
   </style>
-    </head>
-    <body>
-        <div class="topbar">
-            <div class="topbar-left">
-                <select id="profile-picker" aria-label="Label profiles"></select>
-                <button type="button" id="new-profile-button">New profile</button>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="topbar-left">
+        <select id="profile-picker" aria-label="Label profiles"></select>
+        <button type="button" id="new-profile-button">New profile</button>
+      </div>
+      <a class="nav-link" href="/config">Printer settings</a>
+    </div>
+
+    <div class="layout">
+      <div class="panel">
+        <form id="label-form">
+          <div class="stack">
+            <label for="name">Profile name</label>
+            <input id="name" name="name" maxlength="100" required>
+
+            <div class="form-row">
+              <label for="width_mm">
+                Dimensions (mm)
+                <input id="width_mm" name="width_mm" type="number" min="0.1" step="0.1" required> x
+              </label>
+
+              <label for="height_mm">
+                <!-- <span id="height-label-text">Height (mm)</span> -->
+                <input id="height_mm" name="height_mm" type="number" min="0.1" step="0.1" required>
+              </label>
             </div>
-            <a class="nav-link" href="/config">Printer settings</a>
+
+            <label class="checkbox-row" for="is_continuous">
+              <input id="is_continuous" name="is_continuous" type="checkbox">
+              <span>Continuous label stock</span>
+            </label>
+
+            <div class="form-row">
+              <label for="quality">
+                Quality
+                <select id="quality" name="quality">
+                  <option value="BrQuality">BrQuality</option>
+                  <option value="BrSpeed">BrSpeed</option>
+                </select>
+              </label>
+
+              <label for="cut_every">
+                Cut every
+                <input id="cut_every" name="cut_every" type="number" min="1" step="1" value="1" required>
+              </label>
+            </div>
+
+            <label for="quantity">Quantity</label>
+            <input id="quantity" name="quantity" type="number" min="1" step="1" value="1" required>
+
+            <div class="section">
+              <h2>Border</h2>
+
+              <label class="checkbox-row" for="border_enabled">
+                <input id="border_enabled" name="border_enabled" type="checkbox">
+                <span>Show outside border</span>
+              </label>
+
+              <div class="form-row">
+                <label for="border_thickness_mm">
+                  Thickness (mm)
+                  <input id="border_thickness_mm" name="border_thickness_mm" type="number" min="0.1" step="0.1" value="0.5" required>
+                </label>
+
+                <label for="border_inset_mm">
+                  Distance from edge (mm)
+                  <input id="border_inset_mm" name="border_inset_mm" type="number" min="0" step="0.1" value="1" required>
+                </label>
+
+                <label for="border_radius_mm">
+                  Corner radius (mm)
+                  <input id="border_radius_mm" name="border_radius_mm" type="number" min="0" step="0.1" value="1.5" required>
+                </label>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="row-toolbar">
+                <h2>Rows</h2>
+                <button type="button" id="add-row-button">Add row</button>
+              </div>
+              <div id="rows-container" class="stack"></div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="button" id="save-button">Save profile</button>
+            <button type="button" id="delete-button">Delete profile</button>
+          </div>
+
+          <div class="actions">
+            <button type="submit">Preview PDF</button>
+            <button type="button" id="print-button">Print</button>
+          </div>
+
+          <div class="status" id="status"></div>
+        </form>
+
+        <p class="small">
+          Rows are spaced automatically on the label. Preview and print both use the current form values, including unsaved row edits.
+        </p>
+      </div>
+
+      <div class="panel">
+        <iframe id="preview-frame" title="PDF preview"></iframe>
+      </div>
+    </div>
+
+    <template id="row-template">
+      <div class="row-card">
+        <div class="row-toolbar">
+          <p class="row-title">Text row</p>
+          <button type="button" class="row-delete">Delete row</button>
         </div>
 
-        <div class="layout">
-            <div class="panel">
-                <form id="label-form">
-                    <div class="stack">
-                        <label for="name">Profile name</label>
-                        <input id="name" name="name" maxlength="100" required>
+        <label>
+          Text
+          <textarea class="row-text" maxlength="300" required></textarea>
+        </label>
 
-                        <label for="title">Title</label>
-                        <input id="title" name="title" maxlength="100" required>
+        <div class="form-row">
+          <label>
+            Style
+            <select class="row-level">
+              <option value="normal">Normal</option>
+              <option value="h1">H1</option>
+              <option value="h2">H2</option>
+              <option value="h3">H3</option>
+              <option value="h4">H4</option>
+              <option value="h5">H5</option>
+              <option value="h6">H6</option>
+            </select>
+          </label>
 
-                        <label for="subtitle">Subtitle</label>
-                        <input id="subtitle" name="subtitle" maxlength="200">
-
-                        <label for="body">Body</label>
-                        <textarea id="body" name="body" maxlength="1000"></textarea>
-
-                        <div class="form-row">
-                            <label for="width_mm">
-                                Width (mm)
-                                <input id="width_mm" name="width_mm" type="number" min="0.1" step="0.1" required>
-                            </label>
-
-                            <label for="height_mm">
-                                <span id="height-label-text">Height (mm)</span>
-                                <input id="height_mm" name="height_mm" type="number" min="0.1" step="0.1" required>
-                            </label>
-                        </div>
-
-                        <label class="checkbox-row" for="is_continuous">
-                            <input id="is_continuous" name="is_continuous" type="checkbox">
-                            <span>Continuous label stock</span>
-                        </label>
-
-                        <div class="form-row">
-                            <label for="quality">
-                                Quality
-                                <select id="quality" name="quality">
-                                    <option value="BrQuality">BrQuality</option>
-                                    <option value="BrSpeed">BrSpeed</option>
-                                </select>
-                            </label>
-
-                            <label for="cut_every">
-                                Cut every
-                                <input id="cut_every" name="cut_every" type="number" min="1" step="1" value="1" required>
-                            </label>
-                        </div>
-
-                        <label for="quantity">Quantity</label>
-                        <input id="quantity" name="quantity" type="number" min="1" step="1" value="1" required>
-                    </div>
-
-                    <div class="actions">
-                        <button type="button" id="save-button">Save profile</button>
-                        <button type="button" id="delete-button">Delete profile</button>
-                    </div>
-
-                    <div class="actions">
-                        <button type="submit">Preview PDF</button>
-                        <button type="button" id="print-button">Print</button>
-                    </div>
-
-                    <div class="status" id="status"></div>
-                </form>
-
-                <p class="small">
-                    Preview and print both use the current form values. Saving only updates the selected label profile.
-                </p>
-            </div>
-
-            <div class="panel">
-                <iframe id="preview-frame" title="PDF preview"></iframe>
-            </div>
+          <label>
+            Alignment
+            <select class="row-alignment">
+              <option value="left">Left</option>
+              <option value="center">Centre</option>
+              <option value="right">Right</option>
+              <option value="justify">Justify</option>
+            </select>
+          </label>
         </div>
 
-        <script>
+        <div class="checkbox-cluster">
+          <label class="checkbox-row">
+            <input type="checkbox" class="row-bold">
+            <span>Bold</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" class="row-italic">
+            <span>Italic</span>
+          </label>
+        </div>
+      </div>
+    </template>
+
+    <script>
     const DEFAULT_DRAFT = {
       name: "Default label",
-      title: "New label",
-      subtitle: "",
-      body: "",
+      rows: [
+        {
+          text: "New label",
+          level: "h2",
+          bold: false,
+          italic: false,
+          alignment: "center",
+        },
+      ],
+      border: {
+        enabled: false,
+        thickness_mm: 0.5,
+        inset_mm: 1,
+        radius_mm: 1.5,
+      },
       width_mm: 62,
       height_mm: 29,
       is_continuous: false,
@@ -241,10 +375,13 @@
     const saveButton = document.getElementById("save-button");
     const deleteButton = document.getElementById("delete-button");
     const printButton = document.getElementById("print-button");
+    const addRowButton = document.getElementById("add-row-button");
     const previewFrame = document.getElementById("preview-frame");
     const statusEl = document.getElementById("status");
     const heightLabelText = document.getElementById("height-label-text");
     const isContinuousInput = document.getElementById("is_continuous");
+    const rowsContainer = document.getElementById("rows-container");
+    const rowTemplate = document.getElementById("row-template");
 
     let currentPdfBlobUrl = null;
     let currentProfileId = null;
@@ -259,12 +396,61 @@
       heightLabelText.textContent = isContinuousInput.checked ? "Length (mm)" : "Height (mm)";
     }
 
+    function rowCards() {
+      return Array.from(rowsContainer.querySelectorAll(".row-card"));
+    }
+
+    function updateRowDeleteButtons() {
+      const cards = rowCards();
+      cards.forEach((card, index) => {
+        const title = card.querySelector(".row-title");
+        const button = card.querySelector(".row-delete");
+        title.textContent = `Text row ${index + 1}`;
+        button.disabled = cards.length === 1;
+      });
+    }
+
+    function addRow(row = null) {
+      const content = rowTemplate.content.cloneNode(true);
+      const card = content.querySelector(".row-card");
+      card.querySelector(".row-text").value = row?.text ?? "";
+      card.querySelector(".row-level").value = row?.level ?? "normal";
+      card.querySelector(".row-alignment").value = row?.alignment ?? "left";
+      card.querySelector(".row-bold").checked = Boolean(row?.bold);
+      card.querySelector(".row-italic").checked = Boolean(row?.italic);
+      card.querySelector(".row-delete").addEventListener("click", () => {
+        card.remove();
+        updateRowDeleteButtons();
+      });
+      rowsContainer.appendChild(card);
+      updateRowDeleteButtons();
+    }
+
+    function replaceRows(rows) {
+      rowsContainer.innerHTML = "";
+      (rows && rows.length ? rows : DEFAULT_DRAFT.rows).forEach((row) => addRow(row));
+    }
+
+    function getRowsPayload() {
+      return rowCards().map((card) => ({
+        text: card.querySelector(".row-text").value.trim(),
+        level: card.querySelector(".row-level").value,
+        alignment: card.querySelector(".row-alignment").value,
+        bold: card.querySelector(".row-bold").checked,
+        italic: card.querySelector(".row-italic").checked,
+      }));
+    }
+
     function getPayload() {
       return {
         name: document.getElementById("name").value.trim(),
-        title: document.getElementById("title").value.trim(),
-        subtitle: document.getElementById("subtitle").value.trim() || null,
-        body: document.getElementById("body").value.trim() || null,
+        rows: getRowsPayload(),
+        border: {
+          enabled: document.getElementById("border_enabled").checked,
+          thickness_mm: Number(document.getElementById("border_thickness_mm").value),
+          inset_mm: Number(document.getElementById("border_inset_mm").value),
+          radius_mm: Number(document.getElementById("border_radius_mm").value),
+        },
         width_mm: Number(document.getElementById("width_mm").value),
         height_mm: Number(document.getElementById("height_mm").value),
         is_continuous: isContinuousInput.checked,
@@ -276,15 +462,17 @@
 
     function fillForm(profile) {
       document.getElementById("name").value = profile.name ?? "";
-      document.getElementById("title").value = profile.title ?? "";
-      document.getElementById("subtitle").value = profile.subtitle ?? "";
-      document.getElementById("body").value = profile.body ?? "";
       document.getElementById("width_mm").value = profile.width_mm;
       document.getElementById("height_mm").value = profile.height_mm;
       document.getElementById("quality").value = profile.quality;
       document.getElementById("cut_every").value = profile.cut_every;
       document.getElementById("quantity").value = profile.quantity;
+      document.getElementById("border_enabled").checked = Boolean(profile.border?.enabled);
+      document.getElementById("border_thickness_mm").value = profile.border?.thickness_mm ?? 0.5;
+      document.getElementById("border_inset_mm").value = profile.border?.inset_mm ?? 1;
+      document.getElementById("border_radius_mm").value = profile.border?.radius_mm ?? 1.5;
       isContinuousInput.checked = Boolean(profile.is_continuous);
+      replaceRows(profile.rows);
       updateHeightLabel();
       deleteButton.disabled = !currentProfileId;
     }
@@ -456,6 +644,7 @@
     deleteButton.addEventListener("click", deleteProfile);
     newProfileButton.addEventListener("click", startNewProfile);
     printButton.addEventListener("click", printLabel);
+    addRowButton.addEventListener("click", () => addRow());
     profilePicker.addEventListener("change", async () => {
       if (profilePicker.value) {
         await selectProfile(profilePicker.value);
@@ -465,5 +654,5 @@
 
     loadState().then(() => previewPdf());
   </script>
-    </body>
+  </body>
 </html>

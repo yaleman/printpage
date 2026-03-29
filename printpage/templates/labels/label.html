@@ -17,39 +17,105 @@
     .label {
       width: {{ label_width_mm }}mm;
       height: {{ label_height_mm }}mm;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
+      position: relative;
       overflow: hidden;
     }
 
-    .title {
-      font-size: 12pt;
-      font-weight: 700;
+    .border {
+      position: absolute;
+      top: {{ border_inset_mm }}mm;
+      right: {{ border_inset_mm }}mm;
+      bottom: {{ border_inset_mm }}mm;
+      left: {{ border_inset_mm }}mm;
+      border: {{ border_thickness_mm }}mm solid #000;
+      border-radius: {{ border_radius_mm }}mm;
+      box-sizing: border-box;
+      pointer-events: none;
+    }
+
+    .rows {
+      position: absolute;
+      top: {{ content_inset_mm }}mm;
+      right: {{ content_inset_mm }}mm;
+      bottom: {{ content_inset_mm }}mm;
+      left: {{ content_inset_mm }}mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      gap: 1mm;
+      overflow: hidden;
+    }
+
+    .row {
+      margin: 0;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
       line-height: 1.1;
     }
 
-    .subtitle {
+    .row--normal {
       font-size: 8pt;
-      margin-top: 1mm;
     }
 
-    .body {
-      font-size: 7pt;
-      margin-top: 1mm;
-      white-space: pre-wrap;
+    .row--h1 {
+      font-size: 20pt;
+    }
+
+    .row--h2 {
+      font-size: 16pt;
+    }
+
+    .row--h3 {
+      font-size: 13pt;
+    }
+
+    .row--h4 {
+      font-size: 11pt;
+    }
+
+    .row--h5 {
+      font-size: 9pt;
+    }
+
+    .row--h6 {
+      font-size: 8pt;
+    }
+
+    .row--bold {
+      font-weight: 700;
+    }
+
+    .row--italic {
+      font-style: italic;
+    }
+
+    .row--left {
+      text-align: left;
+    }
+
+    .row--center {
+      text-align: center;
+    }
+
+    .row--right {
+      text-align: right;
+    }
+
+    .row--justify {
+      text-align: justify;
     }
   </style>
     </head>
     <body>
         <div class="label">
-            <div class="title">{{ title }}</div>
-            {% if subtitle %}
-            <div class="subtitle">{{ subtitle }}</div>
+            {% if border.enabled %}
+            <div class="border"></div>
             {% endif %}
-            {% if body %}
-            <div class="body">{{ body }}</div>
-            {% endif %}
+            <div class="rows">
+                {% for row in rows %}
+                <div class="row row--{{ row.level }} row--{{ row.alignment }}{% if row.bold %} row--bold{% endif %}{% if row.italic %} row--italic{% endif %}">{{ row.text }}</div>
+                {% endfor %}
+            </div>
         </div>
     </body>
 </html>

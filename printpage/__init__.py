@@ -69,7 +69,7 @@ def select_profile_endpoint(profile_id: str) -> dict:
 @app.get("/api/config")
 def get_config() -> dict:
     queues, default_queue = get_available_queues()
-    state = resolve_state()
+    state = resolve_state(default_queue)
     return {
         "queue_name": state.queue_name,
         "queues": queues,

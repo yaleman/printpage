@@ -33,10 +33,17 @@ def label_dimensions_mm(width_mm: float, height_mm: float) -> dict[str, str]:
 def render_label_html(profile: LabelProfileInput) -> str:
     template = templates.get_template("labels/label.html")
     page_dimensions = label_dimensions_mm(profile.width_mm, profile.height_mm)
+    border = profile.border
+    border_inset = border.inset_mm if border.enabled else 0.0
+    border_thickness = border.thickness_mm if border.enabled else 0.0
+    content_inset = border_inset + border_thickness + 0.75 if border.enabled else 0.0
     return template.render(
-        title=profile.title,
-        subtitle=profile.subtitle,
-        body=profile.body,
+        rows=profile.rows,
+        border=border,
+        border_inset_mm=mm_to_css(border_inset),
+        border_thickness_mm=mm_to_css(border_thickness),
+        border_radius_mm=mm_to_css(border.radius_mm if border.enabled else 0.0),
+        content_inset_mm=mm_to_css(content_inset),
         **page_dimensions,
     )
 

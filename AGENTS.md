@@ -58,6 +58,7 @@ Keep this flow obvious. Avoid adding extra service layers unless the code actual
 ## Testing And Validation
 
 - Prefer tests around request validation, PDF generation, and print-command construction.
+- `mise check` is a hard completion requirement for every task. Do not consider work complete until it passes.
 - Do not send real print jobs during automated checks unless explicitly asked.
 - Mock `subprocess.run` when testing `/print`.
 - Mock `lpadmin`, `lpstat`, and `lpoptions` subprocess calls when testing printer configuration features.

@@ -27,9 +27,28 @@ def completed(
 def default_profile_payload(**overrides: object) -> dict[str, object]:
     payload: dict[str, object] = {
         "name": "Shipping label",
-        "title": "hello",
-        "subtitle": "world",
-        "body": "body",
+        "rows": [
+            {
+                "text": "hello",
+                "level": "h2",
+                "bold": True,
+                "italic": False,
+                "alignment": "center",
+            },
+            {
+                "text": "body",
+                "level": "normal",
+                "bold": False,
+                "italic": True,
+                "alignment": "justify",
+            },
+        ],
+        "border": {
+            "enabled": False,
+            "thickness_mm": 0.5,
+            "inset_mm": 1.0,
+            "radius_mm": 1.5,
+        },
         "width_mm": 62,
         "height_mm": 29,
         "is_continuous": False,
@@ -69,25 +88,18 @@ BrPriority/Quality: *BrSpeed BrQuality
     assert parsed["BrPriority"]["choices"] == ["BrSpeed", "BrQuality"]
 
 
-def test_get_api_state_seeds_default_profile(
+def test_get_api_state_seeds_default_profile_without_printer_lookup(
     client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-        if cmd == ["lpstat", "-p", "-d"]:
-            return completed(cmd, stdout=fake_lpstat_output())
-        raise AssertionError(f"Unexpected command: {cmd}")
-
-    monkeypatch.setattr(printer, "run_command", fake_run_command)
-
     response = client.get("/api/state")
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["queue_name"] == "QL700"
+    assert payload["queue_name"] == "Brother_QL700"
     assert payload["selected_profile_id"]
     assert len(payload["profiles"]) == 1
     assert payload["profiles"][0]["name"] == "Default label"
+    assert payload["profiles"][0]["rows"][0]["text"] == "New label"
     assert state.CONFIG_PATH.exists()
 
 
@@ -209,6 +221,39 @@ def test_labels_pdf_uses_payload_dimensions(
     assert response.status_code == 200
     assert "size: 50mm 30mm;" in captured["html"]
     assert "width: 46mm;" in captured["html"]
+    assert 'row--h2 row--center row--bold' in captured["html"]
+    assert "hello" in captured["html"]
+
+
+def test_labels_pdf_renders_optional_border(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, str] = {}
+
+    def fake_html_to_pdf_bytes(html: str) -> bytes:
+        captured["html"] = html
+        return b"%PDF-test"
+
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
+
+    response = client.post(
+        "/labels.pdf",
+        json=default_profile_payload(
+            border={
+                "enabled": True,
+                "thickness_mm": 0.7,
+                "inset_mm": 1.2,
+                "radius_mm": 2.5,
+            },
+            quantity=1,
+        ),
+    )
+
+    assert response.status_code == 200
+    assert "border: 0.7mm solid #000;" in captured["html"]
+    assert "top: 1.2mm;" in captured["html"]
+    assert "border-radius: 2.5mm;" in captured["html"]
 
 
 def test_print_applies_profile_then_submits_lp_job(
@@ -362,3 +407,88 @@ def test_continuous_and_fixed_size_profiles_validate(
     assert fixed_response.status_code == 200
     assert continuous_response.status_code == 200
     assert invalid_response.status_code == 422
+
+
+def test_profiles_require_at_least_one_row(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", lambda html: b"%PDF-test")
+
+    empty_rows = client.post(
+        "/labels.pdf",
+        json=default_profile_payload(rows=[], quantity=1),
+    )
+    blank_text = client.post(
+        "/labels.pdf",
+        json=default_profile_payload(
+            rows=[
+                {
+                    "text": "   ",
+                    "level": "normal",
+                    "bold": False,
+                    "italic": False,
+                    "alignment": "left",
+                }
+            ],
+            quantity=1,
+        ),
+    )
+
+    assert empty_rows.status_code == 422
+    assert blank_text.status_code == 200
+
+
+def test_invalid_saved_state_falls_back_to_default_profile(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state.CONFIG_PATH.write_text(
+        json.dumps(
+            {
+                "queue_name": "QL700",
+                "selected_profile_id": None,
+                "profiles": [
+                    {
+                        "id": "legacy",
+                        "name": "Legacy",
+                        "title": "old",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd == ["lpstat", "-p", "-d"]:
+            return completed(cmd, stdout=fake_lpstat_output())
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    response = client.get("/api/state")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["profiles"][0]["name"] == "Default label"
+    assert payload["profiles"][0]["rows"][0]["text"] == "New label"
+
+
+def test_profile_save_does_not_require_printer_listing(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd == ["lpstat", "-p", "-d"]:
+            return completed(cmd, stderr="lpstat unavailable", returncode=1)
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    response = client.post("/api/profiles", json=default_profile_payload())
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["queue_name"] == "Brother_QL700"
+    assert len(payload["profiles"]) == 2

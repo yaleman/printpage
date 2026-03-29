@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -21,7 +22,7 @@ from .printer import apply_profile_to_printer, submit_print_job
 
 app = FastAPI()
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-
+print("Serving static files from:", STATIC_DIR, file=sys.stderr)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -52,7 +53,9 @@ def update_profile_endpoint(profile_id: str, profile: LabelProfileInput) -> dict
     try:
         return update_profile(profile_id, profile).model_dump()
     except KeyError as error:
-        raise HTTPException(status_code=404, detail=f"Unknown profile: {profile_id}") from error
+        raise HTTPException(
+            status_code=404, detail=f"Unknown profile: {profile_id}"
+        ) from error
 
 
 @app.delete("/api/profiles/{profile_id}")
@@ -60,7 +63,9 @@ def delete_profile_endpoint(profile_id: str) -> dict:
     try:
         return delete_profile(profile_id).model_dump()
     except KeyError as error:
-        raise HTTPException(status_code=404, detail=f"Unknown profile: {profile_id}") from error
+        raise HTTPException(
+            status_code=404, detail=f"Unknown profile: {profile_id}"
+        ) from error
 
 
 @app.post("/api/profiles/{profile_id}/select")
@@ -68,7 +73,9 @@ def select_profile_endpoint(profile_id: str) -> dict:
     try:
         return select_profile(profile_id).model_dump()
     except KeyError as error:
-        raise HTTPException(status_code=404, detail=f"Unknown profile: {profile_id}") from error
+        raise HTTPException(
+            status_code=404, detail=f"Unknown profile: {profile_id}"
+        ) from error
 
 
 @app.get("/api/config")

@@ -38,12 +38,20 @@
     @apply inline-flex h-9 items-center justify-center rounded-lg border px-3 text-sm font-medium transition focus:outline-none;
   }
 
+  .nav-button:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
   .nav-button--secondary {
     @apply border-stone-300 bg-white text-stone-700 hover:border-stone-400 hover:bg-stone-50;
   }
 
   .nav-button--primary {
     @apply border-stone-900 bg-stone-900 text-white hover:bg-stone-700;
+  }
+
+  .nav-button--save-ready {
+    @apply border-emerald-600 bg-emerald-600 text-white hover:border-emerald-500 hover:bg-emerald-500;
   }
 
   .panel-card {

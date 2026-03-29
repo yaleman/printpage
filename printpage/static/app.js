@@ -3549,6 +3549,7 @@
   var previewTimer = null;
   var previewRequestToken = 0;
   var previewController = null;
+  var baselinePayloadSnapshot = JSON.stringify(DEFAULT_DRAFT);
   function setStatus(message, isError = false) {
     generalStatusEl.textContent = message;
     generalStatusEl.dataset.state = isError ? "error" : "idle";
@@ -3621,6 +3622,24 @@
       quality: profile.quality ?? DEFAULT_DRAFT.quality,
       quantity: profile.quantity ?? DEFAULT_DRAFT.quantity
     };
+  }
+  function serializeProfile(profile) {
+    return JSON.stringify(normalizeProfile(profile));
+  }
+  function setSaveButtonState(isDirty) {
+    saveButton.disabled = !isDirty;
+    saveButton.dataset.state = isDirty ? "dirty" : "clean";
+    saveButton.classList.toggle("nav-button--save-ready", isDirty);
+    saveButton.classList.toggle("nav-button--secondary", !isDirty);
+  }
+  function updateSaveButtonState() {
+    setSaveButtonState(
+      serializeProfile(getPayload()) !== baselinePayloadSnapshot
+    );
+  }
+  function setBaselinePayload(profile) {
+    baselinePayloadSnapshot = serializeProfile(profile);
+    setSaveButtonState(false);
   }
   function ensureActiveRow() {
     if (!draftRows.length) {
@@ -3773,6 +3792,7 @@
     activeRowIndex = 0;
     renderRowsUI();
     updatePreviewMeta(normalizedProfile);
+    setBaselinePayload(normalizedProfile);
     deleteButton.disabled = !currentProfileId;
   }
   function renderProfilePicker(state) {
@@ -3812,6 +3832,7 @@
     }
   }
   function schedulePreview() {
+    updateSaveButtonState();
     cancelPreviewTimer();
     previewHintEl.textContent = "Auto-preview queued";
     previewTimer = window.setTimeout(() => {
@@ -3860,6 +3881,9 @@
     }
   }
   async function saveProfile() {
+    if (saveButton.disabled) {
+      return;
+    }
     setStatus("Saving profile...");
     try {
       const payload = getPayload();
@@ -3882,6 +3906,10 @@
   async function deleteProfile() {
     if (!currentProfileId) {
       setStatus("Draft profile is not saved yet.", true);
+      return;
+    }
+    const profileName = requireElement("name").value.trim() || "this profile";
+    if (!window.confirm(`Delete "${profileName}"? This cannot be undone.`)) {
       return;
     }
     setStatus("Deleting profile...");
@@ -3994,7 +4022,7 @@
       level: "normal",
       bold: false,
       italic: false,
-      alignment: "left"
+      alignment: "center"
     });
     activeRowIndex = draftRows.length - 1;
     renderRowsUI();

@@ -9,7 +9,7 @@
       },
       "cut_every": 1,
       "height_mm": 29.0,
-      "id": "8a03c682b1974e08b82b65a7cd89d99e",
+      "id": "9f5731946adf417f9ac98f5ea15e48f7",
       "is_continuous": false,
       "name": "Default label",
       "quality": "BrQuality",
@@ -17,9 +17,9 @@
       "rows": [
         {
           "alignment": "center",
-          "bold": false,
-          "italic": false,
-          "level": "h2",
+          "bold": true,
+          "italic": true,
+          "level": "normal",
           "text": "New label"
         }
       ],
@@ -27,5 +27,5 @@
     }
   ],
   "queue_name": "Brother_QL700",
-  "selected_profile_id": "8a03c682b1974e08b82b65a7cd89d99e"
+  "selected_profile_id": "9f5731946adf417f9ac98f5ea15e48f7"
 }

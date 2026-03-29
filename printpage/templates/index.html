@@ -22,7 +22,7 @@
           </button>
         </div>
         <div class="flex items-center gap-2">
-          <button type="button" id="save-button" class="nav-button nav-button--secondary">
+          <button type="button" id="save-button" disabled data-state="clean" class="nav-button nav-button--secondary">
             Save
           </button>
           <button type="button" id="delete-button" class="nav-button nav-button--secondary">
@@ -245,9 +245,8 @@
                       <h2 class="text-sm font-semibold text-stone-900">Active row</h2>
                     </div>
                     <div class="flex min-h-0 flex-1 flex-col gap-3 p-3">
-                      <div class="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
-                        <div class="flex flex-wrap gap-2">
-                          <div class="flex flex-wrap gap-1 rounded-lg border border-stone-200 bg-white p-1">
+                      <div class="flex flex-col gap-2">
+                        <div data-row-level-controls class="flex flex-wrap gap-1 rounded-lg border border-stone-200 bg-white p-1">
                             <button
                               type="button"
                               data-row-level="normal"
@@ -268,8 +267,9 @@
                               class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H5</button>
                             <button type="button" data-row-level="h6" data-state="off" aria-pressed="false"
                               class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H6</button>
-                          </div>
+                        </div>
 
+                        <div data-row-style-controls class="flex flex-wrap gap-2">
                           <div class="flex gap-1 rounded-lg border border-stone-200 bg-white p-1">
                             <button type="button" data-row-alignment="left" data-state="on" aria-pressed="true"
                               class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">L</button>
@@ -280,13 +280,13 @@
                             <button type="button" data-row-alignment="justify" data-state="off" aria-pressed="false"
                               class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">J</button>
                           </div>
-                        </div>
 
-                        <div class="flex gap-1 rounded-lg border border-stone-200 bg-white p-1">
-                          <button type="button" id="row-bold-button" data-state="off" aria-pressed="false"
-                            class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">B</button>
-                          <button type="button" id="row-italic-button" data-state="off" aria-pressed="false"
-                            class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">I</button>
+                          <div class="flex gap-1 rounded-lg border border-stone-200 bg-white p-1">
+                            <button type="button" id="row-bold-button" data-state="off" aria-pressed="false"
+                              class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">B</button>
+                            <button type="button" id="row-italic-button" data-state="off" aria-pressed="false"
+                              class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">I</button>
+                          </div>
                         </div>
                       </div>
 

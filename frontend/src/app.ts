@@ -46,7 +46,7 @@ type ProfileDraft = {
 	quantity: number;
 };
 
-type EditableProfile = LabelProfile | ProfileDraft;
+type EditableProfile = LabelProfile | LabelProfileInput | ProfileDraft;
 
 const DEFAULT_DRAFT: ProfileDraft = {
 	name: "Default label",
@@ -128,6 +128,7 @@ let activeRowIndex = 0;
 let previewTimer: number | null = null;
 let previewRequestToken = 0;
 let previewController: AbortController | null = null;
+let baselinePayloadSnapshot = JSON.stringify(DEFAULT_DRAFT);
 
 function setStatus(message: string, isError = false): void {
 	generalStatusEl.textContent = message;
@@ -220,6 +221,32 @@ function normalizeProfile(profile: EditableProfile): ProfileDraft {
 		quality: profile.quality ?? DEFAULT_DRAFT.quality,
 		quantity: profile.quantity ?? DEFAULT_DRAFT.quantity,
 	};
+}
+
+function serializeProfile(
+	profile: EditableProfile | LabelProfileInput,
+): string {
+	return JSON.stringify(normalizeProfile(profile));
+}
+
+function setSaveButtonState(isDirty: boolean): void {
+	saveButton.disabled = !isDirty;
+	saveButton.dataset.state = isDirty ? "dirty" : "clean";
+	saveButton.classList.toggle("nav-button--save-ready", isDirty);
+	saveButton.classList.toggle("nav-button--secondary", !isDirty);
+}
+
+function updateSaveButtonState(): void {
+	setSaveButtonState(
+		serializeProfile(getPayload()) !== baselinePayloadSnapshot,
+	);
+}
+
+function setBaselinePayload(
+	profile: EditableProfile | LabelProfileInput,
+): void {
+	baselinePayloadSnapshot = serializeProfile(profile);
+	setSaveButtonState(false);
 }
 
 function ensureActiveRow(): void {
@@ -406,6 +433,7 @@ function fillForm(profile: EditableProfile): void {
 	activeRowIndex = 0;
 	renderRowsUI();
 	updatePreviewMeta(normalizedProfile);
+	setBaselinePayload(normalizedProfile);
 	deleteButton.disabled = !currentProfileId;
 }
 
@@ -457,6 +485,7 @@ function cancelPreviewTimer(): void {
 }
 
 function schedulePreview(): void {
+	updateSaveButtonState();
 	cancelPreviewTimer();
 	previewHintEl.textContent = "Auto-preview queued";
 	previewTimer = window.setTimeout(() => {
@@ -517,6 +546,10 @@ async function previewPdf({
 }
 
 async function saveProfile(): Promise<void> {
+	if (saveButton.disabled) {
+		return;
+	}
+
 	setStatus("Saving profile...");
 
 	try {
@@ -544,6 +577,12 @@ async function saveProfile(): Promise<void> {
 async function deleteProfile(): Promise<void> {
 	if (!currentProfileId) {
 		setStatus("Draft profile is not saved yet.", true);
+		return;
+	}
+
+	const profileName =
+		requireElement<HTMLInputElement>("name").value.trim() || "this profile";
+	if (!window.confirm(`Delete "${profileName}"? This cannot be undone.`)) {
 		return;
 	}
 
@@ -679,7 +718,7 @@ addRowButton.addEventListener("click", () => {
 		level: "normal",
 		bold: false,
 		italic: false,
-		alignment: "left",
+		alignment: "center",
 	});
 	activeRowIndex = draftRows.length - 1;
 	renderRowsUI();

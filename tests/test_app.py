@@ -123,6 +123,21 @@ def test_static_assets_are_served(client: TestClient) -> None:
     assert "/labels.pdf" in js_response.text
 
 
+def test_frontend_editor_source_tracks_dirty_state_and_delete_confirmation() -> None:
+    source = Path("frontend/src/app.ts").read_text(encoding="utf-8")
+    template = Path("printpage/templates/index.html").read_text(encoding="utf-8")
+
+    assert 'alignment: "center"' in source
+    assert "baselinePayloadSnapshot" in source
+    assert "nav-button--save-ready" in source
+    assert "window.confirm(" in source
+    assert 'data-row-style-controls' in template
+    style_controls_index = template.index('data-row-style-controls')
+    text_area_index = template.index('id="row-text"')
+    assert style_controls_index < template.index('id="row-bold-button"') < text_area_index
+    assert style_controls_index < template.index('data-row-alignment="justify"') < text_area_index
+
+
 def test_openapi_schema_hides_html_pages_and_types_api_responses(
     client: TestClient,
 ) -> None:
@@ -145,6 +160,13 @@ def test_openapi_schema_hides_html_pages_and_types_api_responses(
     assert payload["paths"]["/labels.pdf"]["post"]["responses"]["200"]["content"] == {
         "application/pdf": {}
     }
+
+
+def test_index_disables_save_button_until_changes_exist(client: TestClient) -> None:
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert 'id="save-button" disabled data-state="clean"' in response.text
 
 
 def test_create_update_select_and_delete_profile(
@@ -299,6 +321,40 @@ def test_labels_pdf_renders_optional_border(
     assert "border: 0.7mm solid #000;" in captured["html"]
     assert "top: 1.2mm;" in captured["html"]
     assert "border-radius: 2.5mm;" in captured["html"]
+
+
+def test_labels_pdf_renders_italic_rows_with_visible_slant(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, str] = {}
+
+    def fake_html_to_pdf_bytes(html: str) -> bytes:
+        captured["html"] = html
+        return b"%PDF-test"
+
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
+
+    response = client.post(
+        "/labels.pdf",
+        json=default_profile_payload(
+            rows=[
+                {
+                    "text": "italic",
+                    "level": "normal",
+                    "bold": False,
+                    "italic": True,
+                    "alignment": "center",
+                }
+            ],
+            quantity=1,
+        ),
+    )
+
+    assert response.status_code == 200
+    assert '"DejaVu Sans", "Liberation Sans", "Noto Sans", Arial, sans-serif' in captured["html"]
+    assert "transform: skewX(-12deg);" in captured["html"]
+    assert 'row--normal row--center row--italic' in captured["html"]
 
 
 def test_print_applies_profile_then_submits_lp_job(

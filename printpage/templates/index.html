@@ -16,29 +16,26 @@
       line-height: 1.4;
     }
 
-    h1 {
-      margin-top: 0;
+    .topbar,
+    .topbar-left,
+    .actions,
+    .form-row {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
     }
 
     .topbar {
-      display: flex;
-      align-items: center;
       justify-content: space-between;
-      gap: 1rem;
       margin-bottom: 1rem;
-    }
-
-    .nav-link {
-      color: inherit;
-      text-decoration: none;
-      font-weight: 600;
+      flex-wrap: wrap;
     }
 
     .layout {
       display: grid;
-      grid-template-columns: 320px 1fr;
+      grid-template-columns: 360px 1fr;
       gap: 1rem;
-      min-height: 90vh;
+      min-height: 85vh;
     }
 
     .panel {
@@ -47,14 +44,19 @@
       padding: 1rem;
     }
 
+    .stack {
+      display: grid;
+      gap: 0.75rem;
+    }
+
     label {
       display: block;
-      margin-top: 0.75rem;
       font-weight: 600;
     }
 
     input,
     textarea,
+    select,
     button {
       width: 100%;
       box-sizing: border-box;
@@ -68,35 +70,55 @@
       resize: vertical;
     }
 
-    .actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+    .checkbox-row {
+      display: flex;
       gap: 0.5rem;
-      margin-top: 1rem;
+      align-items: center;
+    }
+
+    .checkbox-row input {
+      width: auto;
+      margin: 0;
+    }
+
+    .actions {
+      margin-top: 0.5rem;
+      flex-wrap: wrap;
     }
 
     .actions button {
+      flex: 1 1 0;
       cursor: pointer;
     }
 
     .status {
       margin-top: 1rem;
       min-height: 1.5rem;
-      font-size: 0.95rem;
       white-space: pre-wrap;
     }
 
     iframe {
       width: 100%;
-      height: 85vh;
+      height: 82vh;
       border: 1px solid #8884;
       border-radius: 8px;
       background: white;
     }
 
+    .nav-link {
+      color: inherit;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
     .small {
       font-size: 0.9rem;
       opacity: 0.8;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.25rem;
     }
 
     @media (max-width: 900px) {
@@ -107,29 +129,79 @@
       iframe {
         height: 60vh;
       }
+
+      .form-row {
+        display: grid;
+        gap: 0.75rem;
+      }
     }
   </style>
     </head>
     <body>
         <div class="topbar">
-            <h1>Label Printer</h1>
+            <div class="topbar-left">
+                <select id="profile-picker" aria-label="Label profiles"></select>
+                <button type="button" id="new-profile-button">New profile</button>
+            </div>
             <a class="nav-link" href="/config">Printer settings</a>
         </div>
 
         <div class="layout">
             <div class="panel">
                 <form id="label-form">
-                    <label for="title">Title</label>
-                    <input id="title" name="title" maxlength="100" required value="hello">
+                    <div class="stack">
+                        <label for="name">Profile name</label>
+                        <input id="name" name="name" maxlength="100" required>
 
-                    <label for="subtitle">Subtitle</label>
-                    <input id="subtitle" name="subtitle" maxlength="200" value="wombat division">
+                        <label for="title">Title</label>
+                        <input id="title" name="title" maxlength="100" required>
 
-                    <label for="body">Body</label>
-                    <textarea id="body" name="body" maxlength="1000">test label</textarea>
+                        <label for="subtitle">Subtitle</label>
+                        <input id="subtitle" name="subtitle" maxlength="200">
 
-                    <label for="copies">Copies</label>
-                    <input id="copies" name="copies" type="number" min="1" max="20" value="1">
+                        <label for="body">Body</label>
+                        <textarea id="body" name="body" maxlength="1000"></textarea>
+
+                        <div class="form-row">
+                            <label for="width_mm">
+                                Width (mm)
+                                <input id="width_mm" name="width_mm" type="number" min="0.1" step="0.1" required>
+                            </label>
+
+                            <label for="height_mm">
+                                <span id="height-label-text">Height (mm)</span>
+                                <input id="height_mm" name="height_mm" type="number" min="0.1" step="0.1" required>
+                            </label>
+                        </div>
+
+                        <label class="checkbox-row" for="is_continuous">
+                            <input id="is_continuous" name="is_continuous" type="checkbox">
+                            <span>Continuous label stock</span>
+                        </label>
+
+                        <div class="form-row">
+                            <label for="quality">
+                                Quality
+                                <select id="quality" name="quality">
+                                    <option value="BrQuality">BrQuality</option>
+                                    <option value="BrSpeed">BrSpeed</option>
+                                </select>
+                            </label>
+
+                            <label for="cut_every">
+                                Cut every
+                                <input id="cut_every" name="cut_every" type="number" min="1" step="1" required>
+                            </label>
+                        </div>
+
+                        <label for="quantity">Quantity</label>
+                        <input id="quantity" name="quantity" type="number" min="1" step="1" required>
+                    </div>
+
+                    <div class="actions">
+                        <button type="button" id="save-button">Save profile</button>
+                        <button type="button" id="delete-button">Delete profile</button>
+                    </div>
 
                     <div class="actions">
                         <button type="submit">Preview PDF</button>
@@ -140,7 +212,7 @@
                 </form>
 
                 <p class="small">
-                    Preview calls <code>/labels.pdf</code> and print calls <code>/print</code>.
+                    Preview and print both use the current form values. Saving only updates the selected label profile.
                 </p>
             </div>
 
@@ -150,25 +222,139 @@
         </div>
 
         <script>
+    const DEFAULT_DRAFT = {
+      name: "Default label",
+      title: "New label",
+      subtitle: "",
+      body: "",
+      width_mm: 62,
+      height_mm: 29,
+      is_continuous: false,
+      cut_every: 1,
+      quality: "BrQuality",
+      quantity: 1,
+    };
+
     const form = document.getElementById("label-form");
+    const profilePicker = document.getElementById("profile-picker");
+    const newProfileButton = document.getElementById("new-profile-button");
+    const saveButton = document.getElementById("save-button");
+    const deleteButton = document.getElementById("delete-button");
+    const printButton = document.getElementById("print-button");
     const previewFrame = document.getElementById("preview-frame");
     const statusEl = document.getElementById("status");
-    const printButton = document.getElementById("print-button");
+    const heightLabelText = document.getElementById("height-label-text");
+    const isContinuousInput = document.getElementById("is_continuous");
 
     let currentPdfBlobUrl = null;
-
-    function getPayload() {
-      return {
-        title: document.getElementById("title").value.trim(),
-        subtitle: document.getElementById("subtitle").value.trim() || null,
-        body: document.getElementById("body").value.trim() || null,
-        copies: Number(document.getElementById("copies").value || 1),
-      };
-    }
+    let currentProfileId = null;
+    let currentState = null;
 
     function setStatus(message, isError = false) {
       statusEl.textContent = message;
       statusEl.style.color = isError ? "crimson" : "";
+    }
+
+    function updateHeightLabel() {
+      heightLabelText.textContent = isContinuousInput.checked ? "Length (mm)" : "Height (mm)";
+    }
+
+    function getPayload() {
+      return {
+        name: document.getElementById("name").value.trim(),
+        title: document.getElementById("title").value.trim(),
+        subtitle: document.getElementById("subtitle").value.trim() || null,
+        body: document.getElementById("body").value.trim() || null,
+        width_mm: Number(document.getElementById("width_mm").value),
+        height_mm: Number(document.getElementById("height_mm").value),
+        is_continuous: isContinuousInput.checked,
+        cut_every: Number(document.getElementById("cut_every").value),
+        quality: document.getElementById("quality").value,
+        quantity: Number(document.getElementById("quantity").value),
+      };
+    }
+
+    function fillForm(profile) {
+      document.getElementById("name").value = profile.name ?? "";
+      document.getElementById("title").value = profile.title ?? "";
+      document.getElementById("subtitle").value = profile.subtitle ?? "";
+      document.getElementById("body").value = profile.body ?? "";
+      document.getElementById("width_mm").value = profile.width_mm;
+      document.getElementById("height_mm").value = profile.height_mm;
+      document.getElementById("quality").value = profile.quality;
+      document.getElementById("cut_every").value = profile.cut_every;
+      document.getElementById("quantity").value = profile.quantity;
+      isContinuousInput.checked = Boolean(profile.is_continuous);
+      updateHeightLabel();
+      deleteButton.disabled = !currentProfileId;
+    }
+
+    function renderProfilePicker(state) {
+      profilePicker.innerHTML = "";
+      state.profiles.forEach((profile) => {
+        const option = document.createElement("option");
+        option.value = profile.id;
+        option.textContent = profile.name;
+        if (profile.id === state.selected_profile_id) {
+          option.selected = true;
+        }
+        profilePicker.appendChild(option);
+      });
+    }
+
+    function selectedProfileFromState(state) {
+      return state.profiles.find((profile) => profile.id === state.selected_profile_id) || state.profiles[0];
+    }
+
+    function renderState(state) {
+      currentState = state;
+      renderProfilePicker(state);
+      const selectedProfile = selectedProfileFromState(state);
+      currentProfileId = selectedProfile ? selectedProfile.id : null;
+      if (selectedProfile) {
+        fillForm(selectedProfile);
+      }
+    }
+
+    function startNewProfile() {
+      currentProfileId = null;
+      profilePicker.value = currentState?.selected_profile_id || "";
+      fillForm(DEFAULT_DRAFT);
+      setStatus("Drafting a new profile.");
+    }
+
+    async function postJson(url, method, payload) {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: payload ? JSON.stringify(payload) : null,
+      });
+
+      const contentType = response.headers.get("content-type") || "";
+      const result = contentType.includes("application/json")
+        ? await response.json()
+        : await response.text();
+
+      if (!response.ok) {
+        throw new Error(typeof result === "string" ? result : JSON.stringify(result, null, 2));
+      }
+
+      return result;
+    }
+
+    async function loadState() {
+      setStatus("Loading label profiles...");
+
+      try {
+        const state = await postJson("/api/state", "GET");
+        renderState(state);
+        setStatus("Profiles loaded.");
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message, true);
+      }
     }
 
     async function previewPdf(event) {
@@ -176,7 +362,6 @@
         event.preventDefault();
       }
 
-      const payload = getPayload();
       setStatus("Generating preview...");
 
       try {
@@ -185,7 +370,7 @@
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(getPayload()),
         });
 
         if (!response.ok) {
@@ -194,7 +379,6 @@
         }
 
         const blob = await response.blob();
-
         if (currentPdfBlobUrl) {
           URL.revokeObjectURL(currentPdfBlobUrl);
         }
@@ -208,39 +392,59 @@
       }
     }
 
-    async function printLabel() {
-      const payload = getPayload();
-      setStatus("Sending to printer...");
+    async function saveProfile() {
+      setStatus("Saving profile...");
 
       try {
-        const response = await fetch("/print", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
+        const method = currentProfileId ? "PUT" : "POST";
+        const url = currentProfileId ? `/api/profiles/${encodeURIComponent(currentProfileId)}` : "/api/profiles";
+        const state = await postJson(url, method, getPayload());
+        renderState(state);
+        setStatus("Profile saved.");
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message, true);
+      }
+    }
 
-        const contentType = response.headers.get("content-type") || "";
-        let result;
+    async function deleteProfile() {
+      if (!currentProfileId) {
+        setStatus("Draft profile is not saved yet.", true);
+        return;
+      }
 
-        if (contentType.includes("application/json")) {
-          result = await response.json();
-        } else {
-          result = await response.text();
-        }
+      setStatus("Deleting profile...");
 
-        if (!response.ok) {
-          throw new Error(
-            typeof result === "string" ? result : JSON.stringify(result, null, 2)
-          );
-        }
+      try {
+        const state = await postJson(`/api/profiles/${encodeURIComponent(currentProfileId)}`, "DELETE");
+        renderState(state);
+        setStatus("Profile deleted.");
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message, true);
+      }
+    }
 
-        setStatus(
-          typeof result === "string"
-            ? `Print submitted:\n${result}`
-            : `Print submitted:\n${JSON.stringify(result, null, 2)}`
-        );
+    async function selectProfile(profileId) {
+      setStatus("Loading profile...");
+
+      try {
+        const state = await postJson(`/api/profiles/${encodeURIComponent(profileId)}/select`, "POST");
+        renderState(state);
+        setStatus("Profile loaded.");
+        await previewPdf();
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message, true);
+      }
+    }
+
+    async function printLabel() {
+      setStatus("Applying printer settings and sending job...");
+
+      try {
+        const result = await postJson("/print", "POST", getPayload());
+        setStatus(`Print submitted:\n${JSON.stringify(result, null, 2)}`);
       } catch (error) {
         console.error(error);
         setStatus(`Print failed: ${error.message}`, true);
@@ -248,9 +452,18 @@
     }
 
     form.addEventListener("submit", previewPdf);
+    saveButton.addEventListener("click", saveProfile);
+    deleteButton.addEventListener("click", deleteProfile);
+    newProfileButton.addEventListener("click", startNewProfile);
     printButton.addEventListener("click", printLabel);
+    profilePicker.addEventListener("change", async () => {
+      if (profilePicker.value) {
+        await selectProfile(profilePicker.value);
+      }
+    });
+    isContinuousInput.addEventListener("change", updateHeightLabel);
 
-    previewPdf();
+    loadState().then(() => previewPdf());
   </script>
     </body>
 </html>

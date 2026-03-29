@@ -6,98 +6,159 @@ import pytest
 from fastapi.testclient import TestClient
 
 import printpage
+from printpage import printer, state
 
 
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    monkeypatch.setattr(printpage, "CONFIG_PATH", tmp_path / "printpage.json")
+    monkeypatch.setattr(state, "CONFIG_PATH", tmp_path / "printpage.json")
     return TestClient(printpage.app)
 
 
-def completed(cmd: list[str], stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
+def completed(
+    cmd: list[str],
+    stdout: str = "",
+    stderr: str = "",
+    returncode: int = 0,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(cmd, returncode, stdout=stdout, stderr=stderr)
 
 
+def default_profile_payload(**overrides: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "name": "Shipping label",
+        "title": "hello",
+        "subtitle": "world",
+        "body": "body",
+        "width_mm": 62,
+        "height_mm": 29,
+        "is_continuous": False,
+        "cut_every": 1,
+        "quality": "BrQuality",
+        "quantity": 2,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def fake_lpstat_output() -> str:
+    return "printer QL700 is idle.\nsystem default destination: QL700\n"
+
+
 def test_parse_lpstat_destinations() -> None:
-    output = """printer QL700 is idle.  enabled since Sun Mar 29 20:40:03 2026
-printer BOGPRINTER is idle.  enabled since Thu Sep 18 15:38:31 2025
+    output = """printer QL700 is idle. enabled since Sun Mar 29 20:40:03 2026
+printer BOGPRINTER is idle. enabled since Thu Sep 18 15:38:31 2025
 system default destination: QL700
 """
 
-    queues, default_queue = printpage.parse_lpstat_destinations(output)
+    queues, default_queue = printer.parse_lpstat_destinations(output)
 
     assert queues == ["QL700", "BOGPRINTER"]
     assert default_queue == "QL700"
 
 
-def test_parse_lpoptions_values() -> None:
-    output = "copies=1 printer-make-and-model='Generic PostScript Printer' media=62x29 BrCutAtEnd=ON"
-
-    parsed = printpage.parse_lpoptions_values(output)
-
-    assert parsed["copies"] == "1"
-    assert parsed["printer-make-and-model"] == "Generic PostScript Printer"
-    assert parsed["media"] == "62x29"
-    assert parsed["BrCutAtEnd"] == "ON"
-
-
 def test_parse_lpoptions_choices() -> None:
-    output = """PageSize/Media Size: *62x29 62x100
-BrCutLabel/Cut Label: 0 *1
-BrCutAtEnd/Cut At End: *ON OFF
+    output = """BrCutLabel/Cut Label: 1 2 *3
+BrPriority/Quality: *BrSpeed BrQuality
 """
 
-    parsed = printpage.parse_lpoptions_choices(output)
+    parsed = printer.parse_lpoptions_choices(output)
 
-    assert parsed["PageSize"]["default"] == "62x29"
-    assert parsed["PageSize"]["choices"] == ["62x29", "62x100"]
-    assert parsed["BrCutLabel"]["default"] == "1"
-    assert parsed["BrCutAtEnd"]["default"] == "ON"
+    assert parsed["BrCutLabel"]["default"] == "3"
+    assert parsed["BrCutLabel"]["choices"] == ["1", "2", "3"]
+    assert parsed["BrPriority"]["choices"] == ["BrSpeed", "BrQuality"]
 
 
-def test_get_api_config_seeds_from_default_queue(
+def test_get_api_state_seeds_default_profile(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
         if cmd == ["lpstat", "-p", "-d"]:
-            return completed(
-                cmd,
-                stdout="printer QL700 is idle.\nsystem default destination: QL700\n",
-            )
-        if cmd == ["lpoptions", "-p", "QL700"]:
-            return completed(cmd, stdout="media=62x29 BrCutLabel=1 BrCutAtEnd=ON\n")
-        if cmd == ["lpoptions", "-p", "QL700", "-l"]:
-            return completed(
-                cmd,
-                stdout=(
-                    "PageSize/Media Size: *62x29 62x100\n"
-                    "media/Media: *62x29 62x100\n"
-                    "BrCutLabel/Cut Label: 0 *1\n"
-                    "BrCutAtEnd/Cut At End: OFF *ON\n"
-                ),
-            )
+            return completed(cmd, stdout=fake_lpstat_output())
         raise AssertionError(f"Unexpected command: {cmd}")
 
-    monkeypatch.setattr(printpage, "run_command", fake_run_command)
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
 
-    response = client.get("/api/config")
+    response = client.get("/api/state")
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["saved_config"] == {
-        "queue_name": "QL700",
-        "page_size": "62x29",
-        "media": "62x29",
-        "br_cut_label": "1",
-        "br_cut_at_end": "ON",
-    }
-    assert payload["live_config"]["queue_name"] == "QL700"
-    assert payload["queues"] == ["QL700"]
-    assert payload["default_queue"] == "QL700"
+    assert payload["queue_name"] == "QL700"
+    assert payload["selected_profile_id"]
+    assert len(payload["profiles"]) == 1
+    assert payload["profiles"][0]["name"] == "Default label"
+    assert state.CONFIG_PATH.exists()
 
 
-def test_post_api_config_writes_json(
+def test_create_update_select_and_delete_profile(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd == ["lpstat", "-p", "-d"]:
+            return completed(cmd, stdout=fake_lpstat_output())
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    initial_state = client.get("/api/state").json()
+    default_id = initial_state["selected_profile_id"]
+
+    create_response = client.post("/api/profiles", json=default_profile_payload())
+    assert create_response.status_code == 200
+    created_state = create_response.json()
+    assert len(created_state["profiles"]) == 2
+    created_id = created_state["selected_profile_id"]
+    assert created_id != default_id
+
+    update_response = client.put(
+        f"/api/profiles/{created_id}",
+        json=default_profile_payload(name="Updated", quantity=5),
+    )
+    assert update_response.status_code == 200
+    updated_state = update_response.json()
+    updated_profile = next(
+        profile for profile in updated_state["profiles"] if profile["id"] == created_id
+    )
+    assert updated_profile["name"] == "Updated"
+    assert updated_profile["quantity"] == 5
+
+    select_response = client.post(f"/api/profiles/{default_id}/select")
+    assert select_response.status_code == 200
+    assert select_response.json()["selected_profile_id"] == default_id
+
+    delete_response = client.delete(f"/api/profiles/{created_id}")
+    assert delete_response.status_code == 200
+    deleted_state = delete_response.json()
+    assert len(deleted_state["profiles"]) == 1
+    assert deleted_state["selected_profile_id"] == default_id
+
+
+def test_delete_last_profile_seeds_new_default(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd == ["lpstat", "-p", "-d"]:
+            return completed(cmd, stdout=fake_lpstat_output())
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    initial_state = client.get("/api/state").json()
+    profile_id = initial_state["selected_profile_id"]
+
+    response = client.delete(f"/api/profiles/{profile_id}")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["profiles"]) == 1
+    assert payload["profiles"][0]["name"] == "Default label"
+    assert payload["selected_profile_id"] == payload["profiles"][0]["id"]
+
+
+def test_get_and_post_config_manage_queue_only(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -105,130 +166,84 @@ def test_post_api_config_writes_json(
         if cmd == ["lpstat", "-p", "-d"]:
             return completed(
                 cmd,
-                stdout="printer QL700 is idle.\nsystem default destination: QL700\n",
-            )
-        if cmd == ["lpoptions", "-p", "QL700"]:
-            return completed(cmd, stdout="media=62x29 BrCutLabel=1 BrCutAtEnd=ON\n")
-        if cmd == ["lpoptions", "-p", "QL700", "-l"]:
-            return completed(
-                cmd,
                 stdout=(
-                    "PageSize/Media Size: *62x29 62x100\n"
-                    "media/Media: *62x29 62x100\n"
-                    "BrCutLabel/Cut Label: 0 *1\n"
-                    "BrCutAtEnd/Cut At End: OFF *ON\n"
+                    "printer QL700 is idle.\n"
+                    "printer SECOND is idle.\n"
+                    "system default destination: QL700\n"
                 ),
             )
         raise AssertionError(f"Unexpected command: {cmd}")
 
-    monkeypatch.setattr(printpage, "run_command", fake_run_command)
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    initial_response = client.get("/api/config")
+    assert initial_response.status_code == 200
+    assert initial_response.json()["queue_name"] == "QL700"
+
+    save_response = client.post("/api/config", json={"queue_name": "SECOND"})
+    assert save_response.status_code == 200
+    assert save_response.json()["queue_name"] == "SECOND"
+
+    saved_state = json.loads(state.CONFIG_PATH.read_text(encoding="utf-8"))
+    assert saved_state["queue_name"] == "SECOND"
+    assert "profiles" in saved_state
+
+
+def test_labels_pdf_uses_payload_dimensions(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, str] = {}
+
+    def fake_html_to_pdf_bytes(html: str) -> bytes:
+        captured["html"] = html
+        return b"%PDF-test"
+
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
 
     response = client.post(
-        "/api/config",
-        json={
-            "queue_name": "QL700",
-            "page_size": "62x29",
-            "media": "62x29",
-            "br_cut_label": "1",
-            "br_cut_at_end": "ON",
-        },
+        "/labels.pdf",
+        json=default_profile_payload(width_mm=50, height_mm=30, quantity=1),
     )
 
     assert response.status_code == 200
-    assert json.loads(printpage.CONFIG_PATH.read_text(encoding="utf-8")) == {
-        "br_cut_at_end": "ON",
-        "br_cut_label": "1",
-        "media": "62x29",
-        "page_size": "62x29",
-        "queue_name": "QL700",
-    }
+    assert "size: 50mm 30mm;" in captured["html"]
+    assert "width: 46mm;" in captured["html"]
 
 
-def test_sync_updates_json_from_live_values(
+def test_print_applies_profile_then_submits_lp_job(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-        if cmd == ["lpoptions", "-p", "QL700"]:
-            return completed(cmd, stdout="")
-        if cmd == ["lpoptions", "-p", "QL700", "-l"]:
-            return completed(
-                cmd,
-                stdout=(
-                    "PageSize/Media Size: 29x90 *62x29\n"
-                    "BrCutLabel/Cut Label: 0 *1\n"
-                    "BrCutAtEnd/Cut At End: OFF *ON\n"
-                ),
-            )
-        if cmd == ["lpstat", "-p", "-d"]:
-            return completed(
-                cmd,
-                stdout="printer QL700 is idle.\nsystem default destination: QL700\n",
-            )
-        raise AssertionError(f"Unexpected command: {cmd}")
+    state.save_state(state.build_default_state(queue_name="QL700"))
 
-    monkeypatch.setattr(printpage, "run_command", fake_run_command)
-
-    response = client.post("/api/config/sync", json={"queue_name": "QL700"})
-
-    assert response.status_code == 200
-    payload = json.loads(printpage.CONFIG_PATH.read_text(encoding="utf-8"))
-    assert payload == {
-        "br_cut_at_end": "ON",
-        "br_cut_label": "1",
-        "media": "62x29",
-        "page_size": "62x29",
-        "queue_name": "QL700",
-    }
-
-
-def test_apply_runs_lpadmin_with_expected_args(
-    client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
     commands: list[list[str]] = []
 
     def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
         commands.append(cmd)
-        if cmd == ["lpstat", "-p", "-d"]:
-            return completed(
-                cmd,
-                stdout="printer QL700 is idle.\nsystem default destination: QL700\n",
-            )
-        if cmd == ["lpoptions", "-p", "QL700"]:
-            return completed(
-                cmd,
-                stdout="PageSize=62x29 media=62x29 BrCutLabel=1 BrCutAtEnd=ON\n",
-            )
         if cmd == ["lpoptions", "-p", "QL700", "-l"]:
             return completed(
                 cmd,
                 stdout=(
-                    "PageSize/Media Size: *62x29 62x100\n"
-                    "media/Media: *62x29 62x100\n"
-                    "BrCutLabel/Cut Label: 0 *1\n"
-                    "BrCutAtEnd/Cut At End: OFF *ON\n"
+                    "BrCutLabel/Cut Label: *1 2 3\n"
+                    "BrPriority/Quality: BrSpeed *BrQuality\n"
                 ),
             )
         if cmd[:4] == ["sudo", "/usr/sbin/lpadmin", "-p", "QL700"]:
             return completed(cmd, stdout="applied\n")
+        if cmd[:2] == ["lp", "-d"]:
+            return completed(cmd, stdout="request id is QL700-1\n")
         raise AssertionError(f"Unexpected command: {cmd}")
 
-    monkeypatch.setattr(printpage, "run_command", fake_run_command)
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", lambda html: b"%PDF-test")
 
-    response = client.post(
-        "/api/config/apply",
-        json={
-            "queue_name": "QL700",
-            "page_size": "62x29",
-            "media": "62x29",
-            "br_cut_label": "1",
-            "br_cut_at_end": "ON",
-        },
-    )
+    response = client.post("/print", json=default_profile_payload(quantity=3))
 
     assert response.status_code == 200
-    assert [
+    assert response.json()["queue"] == "QL700"
+    assert commands[0] == ["lpoptions", "-p", "QL700", "-l"]
+    assert commands[1] == [
         "sudo",
         "/usr/sbin/lpadmin",
         "-p",
@@ -241,203 +256,109 @@ def test_apply_runs_lpadmin_with_expected_args(
         "BrCutLabel=1",
         "-o",
         "BrCutAtEnd=ON",
-    ] in commands
+        "-o",
+        "BrPriority=BrQuality",
+    ]
+    assert commands[2][0:4] == ["lp", "-d", "QL700", "-n"]
+    assert commands[2][4] == "3"
 
 
-def test_apply_failure_returns_500(
+def test_print_supports_quality_option_named_quality(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    state.save_state(state.build_default_state(queue_name="QL700"))
+
     def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-        if cmd[:4] == ["sudo", "/usr/sbin/lpadmin", "-p", "QL700"]:
-            return completed(cmd, stderr="lpadmin failed", returncode=1)
-        raise AssertionError(f"Unexpected command: {cmd}")
-
-    monkeypatch.setattr(printpage, "run_command", fake_run_command)
-
-    response = client.post(
-        "/api/config/apply",
-        json={
-            "queue_name": "QL700",
-            "page_size": "62x29",
-            "media": "62x29",
-            "br_cut_label": "1",
-            "br_cut_at_end": "ON",
-        },
-    )
-
-    assert response.status_code == 500
-    assert "lpadmin failed" in response.json()["detail"]
-    assert printpage.CONFIG_PATH.exists()
-
-
-def test_queue_not_found_returns_404(
-    client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-        if cmd == ["lpstat", "-p", "-d"]:
+        if cmd == ["lpoptions", "-p", "QL700", "-l"]:
             return completed(
                 cmd,
-                stdout="printer QL700 is idle.\nsystem default destination: QL700\n",
+                stdout=(
+                    "BrCutLabel/Cut Label: *1 2\n"
+                    "Quality/Quality: *BrSpeed BrQuality\n"
+                ),
             )
-        if cmd == ["lpoptions", "-p", "MISSING"]:
-            return completed(cmd, stderr="Unknown destination", returncode=1)
-        raise AssertionError(f"Unexpected command: {cmd}")
-
-    monkeypatch.setattr(printpage, "run_command", fake_run_command)
-
-    response = client.get("/api/config", params={"queue_name": "MISSING"})
-
-    assert response.status_code == 404
-    assert "Unknown destination" in response.json()["detail"]
-
-
-def test_print_uses_configured_queue(
-    client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    printpage.CONFIG_PATH.write_text(
-        json.dumps(
-            {
-                "queue_name": "QL700",
-                "page_size": "62x29",
-                "media": "62x29",
-                "br_cut_label": "1",
-                "br_cut_at_end": "ON",
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    commands: list[list[str]] = []
-
-    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-        commands.append(cmd)
+        if cmd[:4] == ["sudo", "/usr/sbin/lpadmin", "-p", "QL700"]:
+            assert cmd[-1] == "Quality=BrSpeed"
+            return completed(cmd, stdout="applied\n")
         if cmd[:2] == ["lp", "-d"]:
             return completed(cmd, stdout="request id is QL700-1\n")
         raise AssertionError(f"Unexpected command: {cmd}")
 
-    monkeypatch.setattr(printpage, "run_command", fake_run_command)
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
     monkeypatch.setattr(printpage, "html_to_pdf_bytes", lambda html: b"%PDF-test")
 
-    response = client.post(
-        "/print",
-        json={
-            "title": "hello",
-            "subtitle": "world",
-            "body": "body",
-            "copies": 2,
-        },
-    )
+    response = client.post("/print", json=default_profile_payload(quality="BrSpeed", quantity=1))
 
     assert response.status_code == 200
-    assert response.json()["queue"] == "QL700"
-    assert commands[0][0:4] == ["lp", "-d", "QL700", "-n"]
 
 
-def test_labels_pdf_uses_configured_page_size(
+def test_print_rejects_unsupported_cut_value(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    printpage.CONFIG_PATH.write_text(
-        json.dumps(
-            {
-                "queue_name": "QL700",
-                "page_size": "50x30",
-                "media": "50x30",
-                "br_cut_label": "1",
-                "br_cut_at_end": "ON",
-            }
-        ),
-        encoding="utf-8",
-    )
+    state.save_state(state.build_default_state(queue_name="QL700"))
 
-    captured: dict[str, str] = {}
-
-    def fake_html_to_pdf_bytes(html: str) -> bytes:
-        captured["html"] = html
-        return b"%PDF-test"
-
-    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
-
-    response = client.post(
-        "/labels.pdf",
-        json={
-            "title": "hello",
-            "subtitle": "world",
-            "body": "body",
-            "copies": 1,
-        },
-    )
-
-    assert response.status_code == 200
-    assert "size: 50mm 30mm;" in captured["html"]
-    assert "width: 46mm;" in captured["html"]
-
-
-def test_labels_pdf_falls_back_to_default_size_for_named_media(
-    client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    printpage.CONFIG_PATH.write_text(
-        json.dumps(
-            {
-                "queue_name": "QL700",
-                "page_size": "Letter",
-                "media": "Letter",
-                "br_cut_label": "1",
-                "br_cut_at_end": "ON",
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    captured: dict[str, str] = {}
-
-    def fake_html_to_pdf_bytes(html: str) -> bytes:
-        captured["html"] = html
-        return b"%PDF-test"
-
-    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
-
-    response = client.post(
-        "/labels.pdf",
-        json={
-            "title": "hello",
-            "subtitle": "world",
-            "body": "body",
-            "copies": 1,
-        },
-    )
-
-    assert response.status_code == 200
-    assert "size: 62mm 29mm;" in captured["html"]
-
-
-def test_get_api_config_handles_missing_brother_options(
-    client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
     def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-        if cmd == ["lpstat", "-p", "-d"]:
+        if cmd == ["lpoptions", "-p", "QL700", "-l"]:
             return completed(
                 cmd,
-                stdout="printer QL700 is idle.\nsystem default destination: QL700\n",
+                stdout=(
+                    "BrCutLabel/Cut Label: *1 2\n"
+                    "BrPriority/Quality: *BrSpeed BrQuality\n"
+                ),
             )
-        if cmd == ["lpoptions", "-p", "QL700"]:
-            return completed(cmd, stdout="")
-        if cmd == ["lpoptions", "-p", "QL700", "-l"]:
-            return completed(cmd, stdout="PageSize/Media Size: *62x29 62x100\n")
         raise AssertionError(f"Unexpected command: {cmd}")
 
-    monkeypatch.setattr(printpage, "run_command", fake_run_command)
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
 
-    response = client.get("/api/config")
+    response = client.post("/print", json=default_profile_payload(cut_every=4))
 
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["live_config"]["page_size"] == "62x29"
-    assert payload["live_config"]["media"] == "62x29"
-    assert payload["live_config"]["br_cut_label"] == "1"
-    assert payload["live_config"]["br_cut_at_end"] == "ON"
+    assert response.status_code == 400
+    assert "BrCutLabel=4" in response.json()["detail"]
+
+
+def test_print_rejects_unsupported_quality_value(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state.save_state(state.build_default_state(queue_name="QL700"))
+
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd == ["lpoptions", "-p", "QL700", "-l"]:
+            return completed(
+                cmd,
+                stdout=(
+                    "BrCutLabel/Cut Label: *1 2\n"
+                    "BrPriority/Quality: *BrSpeed\n"
+                ),
+            )
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    response = client.post("/print", json=default_profile_payload(quality="BrQuality"))
+
+    assert response.status_code == 400
+    assert "BrPriority=BrQuality" in response.json()["detail"]
+
+
+def test_continuous_and_fixed_size_profiles_validate(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", lambda html: b"%PDF-test")
+
+    fixed_response = client.post("/labels.pdf", json=default_profile_payload(quantity=1))
+    continuous_response = client.post(
+        "/labels.pdf",
+        json=default_profile_payload(is_continuous=True, height_mm=100, quantity=1),
+    )
+    invalid_response = client.post(
+        "/labels.pdf",
+        json=default_profile_payload(height_mm=0, quantity=1),
+    )
+
+    assert fixed_response.status_code == 200
+    assert continuous_response.status_code == 200
+    assert invalid_response.status_code == 422

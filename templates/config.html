@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Printer Settings</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+    :root {
+      color-scheme: light dark;
+    }
+
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 1rem;
+      line-height: 1.4;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .nav-link {
+      color: inherit;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 1rem;
+      min-height: 90vh;
+    }
+
+    .panel {
+      border: 1px solid #8884;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    label {
+      display: block;
+      margin-top: 0.75rem;
+      font-weight: 600;
+    }
+
+    input,
+    select,
+    button {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 0.25rem;
+      padding: 0.6rem;
+      font: inherit;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .checkbox-row input {
+      width: auto;
+      margin: 0;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .status,
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .status {
+      min-height: 1.5rem;
+      margin-top: 1rem;
+    }
+
+    .small {
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin-top: 0;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+    </head>
+    <body>
+        <div class="topbar">
+            <h1>Printer Settings</h1>
+            <a class="nav-link" href="/">Back to labels</a>
+        </div>
+
+        <div class="layout">
+            <div class="panel">
+                <form id="config-form">
+                    <label for="queue_name">Queue</label>
+                    <select id="queue_name" name="queue_name"></select>
+
+                    <label for="page_size">Page size</label>
+                    <input id="page_size" name="page_size" list="page-size-options" required>
+                    <datalist id="page-size-options"></datalist>
+
+                    <label for="media">Media</label>
+                    <input id="media" name="media" list="media-options" required>
+                    <datalist id="media-options"></datalist>
+
+                    <label class="checkbox-row" for="br_cut_label_enabled">
+                        <input id="br_cut_label_enabled" name="br_cut_label_enabled" type="checkbox">
+                        <span>Enable label cutting (`BrCutLabel=1`)</span>
+                    </label>
+
+                    <label class="checkbox-row" for="br_cut_at_end_enabled">
+                        <input id="br_cut_at_end_enabled" name="br_cut_at_end_enabled" type="checkbox">
+                        <span>Cut at end (`BrCutAtEnd=ON`)</span>
+                    </label>
+
+                    <div class="actions">
+                        <button type="submit">Save config</button>
+                        <button type="button" id="sync-button">Sync from printer</button>
+                        <button type="button" id="apply-button">Apply to printer</button>
+                    </div>
+
+                    <div class="status" id="status"></div>
+                </form>
+
+                <p class="small">
+                    Values shown in the option lists come from <code>lpoptions -l</code>. You can still type raw values such as <code>62x29</code> when the queue does not advertise Brother-specific settings.
+                </p>
+            </div>
+
+            <div class="panel">
+                <h2>Current State</h2>
+                <h3>Saved config</h3>
+                <pre id="saved-config">Loading...</pre>
+
+                <h3>Live printer config</h3>
+                <pre id="live-config">Loading...</pre>
+
+                <h3>Advertised option choices</h3>
+                <pre id="option-choices">Loading...</pre>
+            </div>
+        </div>
+
+        <script>
+    const configForm = document.getElementById("config-form");
+    const queueSelect = document.getElementById("queue_name");
+    const pageSizeInput = document.getElementById("page_size");
+    const mediaInput = document.getElementById("media");
+    const cutLabelCheckbox = document.getElementById("br_cut_label_enabled");
+    const cutAtEndCheckbox = document.getElementById("br_cut_at_end_enabled");
+    const statusEl = document.getElementById("status");
+    const syncButton = document.getElementById("sync-button");
+    const applyButton = document.getElementById("apply-button");
+    const savedConfigEl = document.getElementById("saved-config");
+    const liveConfigEl = document.getElementById("live-config");
+    const optionChoicesEl = document.getElementById("option-choices");
+    const pageSizeOptions = document.getElementById("page-size-options");
+    const mediaOptions = document.getElementById("media-options");
+
+    function setStatus(message, isError = false) {
+      statusEl.textContent = message;
+      statusEl.style.color = isError ? "crimson" : "";
+    }
+
+    function optionValues(optionChoices, key) {
+      const option = optionChoices[key];
+      return option && Array.isArray(option.choices) ? option.choices : [];
+    }
+
+    function updateDataList(element, values) {
+      element.innerHTML = "";
+      values.forEach((value) => {
+        const option = document.createElement("option");
+        option.value = value;
+        element.appendChild(option);
+      });
+    }
+
+    function updateQueueOptions(queues, selectedQueue) {
+      queueSelect.innerHTML = "";
+      queues.forEach((queue) => {
+        const option = document.createElement("option");
+        option.value = queue;
+        option.textContent = queue;
+        if (queue === selectedQueue) {
+          option.selected = true;
+        }
+        queueSelect.appendChild(option);
+      });
+    }
+
+    function getPayload() {
+      return {
+        queue_name: queueSelect.value,
+        page_size: pageSizeInput.value.trim(),
+        media: mediaInput.value.trim(),
+        br_cut_label: cutLabelCheckbox.checked ? "1" : "0",
+        br_cut_at_end: cutAtEndCheckbox.checked ? "ON" : "OFF",
+      };
+    }
+
+    function populateForm(config) {
+      queueSelect.value = config.queue_name;
+      pageSizeInput.value = config.page_size;
+      mediaInput.value = config.media;
+      cutLabelCheckbox.checked = config.br_cut_label === "1";
+      cutAtEndCheckbox.checked = config.br_cut_at_end === "ON";
+    }
+
+    function renderState(data) {
+      const savedConfig = data.saved_config;
+      const liveConfig = data.live_config;
+      const optionChoices = data.option_choices || {};
+      const selectedQueue = liveConfig.queue_name || savedConfig.queue_name;
+      const formConfig = savedConfig.queue_name === selectedQueue
+        ? savedConfig
+        : { ...liveConfig, queue_name: selectedQueue };
+
+      updateQueueOptions(data.queues || [], selectedQueue);
+      populateForm(formConfig);
+      savedConfigEl.textContent = JSON.stringify(savedConfig, null, 2);
+      liveConfigEl.textContent = JSON.stringify(liveConfig, null, 2);
+      optionChoicesEl.textContent = JSON.stringify(optionChoices, null, 2);
+      updateDataList(pageSizeOptions, optionValues(optionChoices, "PageSize"));
+      updateDataList(mediaOptions, optionValues(optionChoices, "media"));
+    }
+
+    async function loadConfig(queueName = null) {
+      const url = queueName ? `/api/config?queue_name=${encodeURIComponent(queueName)}` : "/api/config";
+      setStatus("Loading printer configuration...");
+
+      try {
+        const response = await fetch(url);
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(typeof result === "string" ? result : JSON.stringify(result, null, 2));
+        }
+
+        renderState(result);
+        setStatus("Configuration loaded.");
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message, true);
+      }
+    }
+
+    async function postJson(url, payload, successMessage) {
+      setStatus(successMessage);
+
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const contentType = response.headers.get("content-type") || "";
+        const result = contentType.includes("application/json")
+          ? await response.json()
+          : await response.text();
+
+        if (!response.ok) {
+          throw new Error(typeof result === "string" ? result : JSON.stringify(result, null, 2));
+        }
+
+        renderState(result);
+        setStatus("Done.");
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message, true);
+      }
+    }
+
+    configForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await postJson("/api/config", getPayload(), "Saving configuration...");
+    });
+
+    syncButton.addEventListener("click", async () => {
+      await postJson(
+        "/api/config/sync",
+        { queue_name: queueSelect.value },
+        "Syncing from printer..."
+      );
+    });
+
+    applyButton.addEventListener("click", async () => {
+      await postJson("/api/config/apply", getPayload(), "Applying printer configuration...");
+    });
+
+    queueSelect.addEventListener("change", async () => {
+      await loadConfig(queueSelect.value);
+    });
+
+    loadConfig();
+  </script>
+    </body>
+</html>

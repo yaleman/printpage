@@ -5,10 +5,11 @@ This repository is a small FastAPI app for generating Brother label PDFs and sen
 ## Stack
 
 - Python 3.12+
+- Linux deployment target
 - FastAPI for HTTP endpoints
 - Jinja2 templates in `templates/`
 - WeasyPrint for HTML-to-PDF rendering
-- CUPS via the `lp` command for print submission
+- CUPS via `lp`, `lpadmin`, `lpstat`, and `lpoptions`
 - `uv` for dependency and environment management
 
 ## Working Rules
@@ -41,6 +42,10 @@ Keep this flow obvious. Avoid adding extra service layers unless the code actual
 
 - The target printer is a Brother label printer behind CUPS.
 - The queue name is currently hard-coded as `Brother_QL700`.
+- Production assumptions are Linux-specific even if local development happens elsewhere.
+- The deployed service user is expected to have passwordless `sudo` for `/usr/sbin/lpadmin`.
+- Treat `lp`, `lpadmin`, `lpstat`, and `lpoptions` as required runtime commands.
+- It is acceptable for printer configuration changes to call `sudo /usr/sbin/lpadmin ...` directly.
 - If you make printer configuration configurable, prefer a single environment variable over a config system.
 - Preserve straightforward `subprocess.run(...)` usage for `lp` unless there is a concrete reason to change it.
 
@@ -55,6 +60,7 @@ Keep this flow obvious. Avoid adding extra service layers unless the code actual
 - Prefer tests around request validation, PDF generation, and print-command construction.
 - Do not send real print jobs during automated checks unless explicitly asked.
 - Mock `subprocess.run` when testing `/print`.
+- Mock `lpadmin`, `lpstat`, and `lpoptions` subprocess calls when testing printer configuration features.
 - For manual verification, prefer:
   - `uv run uvicorn printpage:app --reload`
   - previewing via `/labels.pdf`

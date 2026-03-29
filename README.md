@@ -1,0 +1,58 @@
+# printpage
+
+Small FastAPI app for generating label PDFs and sending them to a Brother label printer through CUPS.
+
+## Requirements
+
+- Linux
+- CUPS running locally
+- A configured printer queue
+- `uv` for Python environment management
+- Required CUPS commands available in `PATH` or at their system locations:
+  - `lp`
+  - `lpadmin`
+  - `lpstat`
+  - `lpoptions`
+
+## Running
+
+Install dependencies with `uv`, then run the app with Uvicorn:
+
+```sh
+uv run uvicorn printpage:app --host 0.0.0.0 --port 8000
+```
+
+## Printer Administration
+
+The app is designed to manage a local CUPS printer queue.
+
+- Configuration reads use `lpstat` and `lpoptions`.
+- Print submission uses `lp`.
+- Configuration apply uses `sudo /usr/sbin/lpadmin`.
+- The app assumes these commands can run non-interactively.
+
+That means the deployed service user must have passwordless `sudo` for the required administrative command instead of prompting for a password at request time.
+
+Example `lpadmin` command shape used for Brother label settings:
+
+```sh
+sudo lpadmin -p Brother_QL700 \
+  -o PageSize=62x29 \
+  -o media=62x29 \
+  -o BrCutLabel=1 \
+  -o BrCutAtEnd=ON
+```
+
+## Sudoers Setup
+
+The intended setup is a narrowly scoped sudoers rule for `lpadmin`, not blanket sudo access.
+
+Example:
+
+```sudoers
+printpage ALL=(root) NOPASSWD: /usr/sbin/lpadmin
+```
+
+Replace `printpage` with the actual service user account that runs the app.
+
+Humans setting up the host need this because the web app queries printer state directly and applies printer defaults through CUPS from HTTP requests. Without passwordless `sudo`, config updates would block on an interactive password prompt and fail.

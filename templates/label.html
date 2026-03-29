@@ -4,8 +4,8 @@
         <meta charset="utf-8">
         <style>
     @page {
-      size: 62mm 29mm;
-      margin: 2mm;
+      size: {{ page_width_mm }}mm {{ page_height_mm }}mm;
+      margin: {{ margin_mm }}mm;
     }
 
     html, body {
@@ -15,8 +15,8 @@
     }
 
     .label {
-      width: 58mm;
-      height: 25mm;
+      width: {{ label_width_mm }}mm;
+      height: {{ label_height_mm }}mm;
       display: flex;
       flex-direction: column;
       justify-content: center;

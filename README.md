@@ -14,6 +14,23 @@ Small FastAPI app for generating label PDFs and sending them to a Brother label 
   - `lpstat`
   - `lpoptions`
 
+## Running On macOS
+
+macOS is useful for local development, but the deployed target is still Linux.
+
+Install the Homebrew system dependency first:
+
+```sh
+brew install pygobject3
+```
+
+Then install Python dependencies and start the app:
+
+```sh
+uv sync
+uv run uvicorn printpage:app --host 0.0.0.0 --port 8000
+```
+
 ## Running
 
 Install dependencies with `uv`, then run the app with Uvicorn:

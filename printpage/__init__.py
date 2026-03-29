@@ -13,7 +13,8 @@ from pydantic import BaseModel, Field, field_validator
 app = FastAPI()
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-TEMPLATES_DIR = REPO_ROOT / "templates"
+PACKAGE_DIR = Path(__file__).resolve().parent
+TEMPLATES_DIR = PACKAGE_DIR / "templates"
 CONFIG_PATH = REPO_ROOT / "printpage.json"
 DEFAULT_QUEUE_NAME = "Brother_QL700"
 DEFAULT_PAGE_SIZE = "62x29"

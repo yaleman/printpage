@@ -19,6 +19,7 @@ class ResolvedPrintLayout:
     page_height_mm: float
     content_width_mm: float
     content_height_mm: float
+    use_custom_media_size: bool
     should_rotate: bool
     warning_message: str | None
 
@@ -29,6 +30,7 @@ def resolve_preview_layout(profile: LabelProfileInput) -> ResolvedPrintLayout:
         page_height_mm=profile.height_mm,
         content_width_mm=profile.width_mm,
         content_height_mm=profile.height_mm,
+        use_custom_media_size=False,
         should_rotate=False,
         warning_message=None,
     )
@@ -109,6 +111,7 @@ def resolve_print_layout(
         page_height_mm=page_height_mm,
         content_width_mm=profile.width_mm,
         content_height_mm=profile.height_mm,
+        use_custom_media_size=stock_is_continuous,
         should_rotate=compatibility.should_rotate,
         warning_message=compatibility.warning_message,
     )

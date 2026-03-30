@@ -519,6 +519,16 @@ def test_print_applies_profile_then_submits_lp_job(
     ]
     assert commands[2][0:4] == ["lp", "-d", "QL700", "-n"]
     assert commands[2][4] == "3"
+    assert commands[2][5:13] == [
+        "-o",
+        "media=62x29",
+        "-o",
+        "BrCutLabel=1",
+        "-o",
+        "BrCutAtEnd=ON",
+        "-o",
+        "BrPriority=BrQuality",
+    ]
 
 
 def test_print_supports_quality_option_named_quality(
@@ -598,9 +608,19 @@ def test_print_uses_loaded_continuous_stock_for_rotated_jobs(
         "-p",
         "QL700",
         "-o",
-        "PageSize=62x350",
+        "PageSize=Custom.62x350mm",
         "-o",
-        "media=62x350",
+        "media=Custom.62x350mm",
+        "-o",
+        "BrCutLabel=1",
+        "-o",
+        "BrCutAtEnd=ON",
+        "-o",
+        "BrPriority=BrQuality",
+    ]
+    assert commands[2][5:13] == [
+        "-o",
+        "media=Custom.62x350mm",
         "-o",
         "BrCutLabel=1",
         "-o",

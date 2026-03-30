@@ -132,7 +132,9 @@ def print_label(profile: LabelProfileInput) -> PrintJobResult:
         stock_is_continuous=state.stock_is_continuous,
         stock_length_mm=state.stock_length_mm,
     )
-    apply_profile_to_printer(state.queue_name, profile, layout)
+    media_value, cut_value, quality_key = apply_profile_to_printer(
+        state.queue_name, profile, layout
+    )
     html = render_label_html(profile, layout)
     pdf_bytes = html_to_pdf_bytes(html)
 
@@ -140,7 +142,15 @@ def print_label(profile: LabelProfileInput) -> PrintJobResult:
         tmp.write(pdf_bytes)
         tmp.flush()
         return PrintJobResult.model_validate(
-            submit_print_job(state.queue_name, profile.quantity, tmp.name)
+            submit_print_job(
+                state.queue_name,
+                profile.quantity,
+                tmp.name,
+                media_value=media_value,
+                cut_value=cut_value,
+                quality_key=quality_key,
+                quality_value=profile.quality,
+            )
         )
 
 

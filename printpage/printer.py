@@ -98,6 +98,13 @@ def media_size_value(width_mm: float, height_mm: float) -> str:
     return f"{mm_to_css(width_mm)}x{mm_to_css(height_mm)}"
 
 
+def cups_media_value(width_mm: float, height_mm: float, *, use_custom: bool) -> str:
+    base_value = media_size_value(width_mm, height_mm)
+    if use_custom:
+        return f"Custom.{base_value}mm"
+    return base_value
+
+
 def validate_profile_options(
     queue_name: str,
     profile: LabelProfileInput,
@@ -137,10 +144,14 @@ def apply_profile_to_printer(
     queue_name: str,
     profile: LabelProfileInput,
     layout: ResolvedPrintLayout,
-) -> None:
+) -> tuple[str, str, str]:
     choices = get_queue_choices(queue_name)
     cut_value, quality_key = validate_profile_options(queue_name, profile, choices)
-    size_value = media_size_value(layout.page_width_mm, layout.page_height_mm)
+    size_value = cups_media_value(
+        layout.page_width_mm,
+        layout.page_height_mm,
+        use_custom=layout.use_custom_media_size,
+    )
 
     cmd = [
         "sudo",
@@ -166,14 +177,33 @@ def apply_profile_to_printer(
             detail=f"Failed to apply printer settings: {proc.stderr.strip() or proc.stdout.strip()}",
         )
 
+    return size_value, cut_value, quality_key
 
-def submit_print_job(queue_name: str, quantity: int, pdf_path: str) -> dict[str, str | bool]:
+
+def submit_print_job(
+    queue_name: str,
+    quantity: int,
+    pdf_path: str,
+    *,
+    media_value: str,
+    cut_value: str,
+    quality_key: str,
+    quality_value: str,
+) -> dict[str, str | bool]:
     cmd = [
         "lp",
         "-d",
         queue_name,
         "-n",
         str(quantity),
+        "-o",
+        f"media={media_value}",
+        "-o",
+        f"BrCutLabel={cut_value}",
+        "-o",
+        "BrCutAtEnd=ON",
+        "-o",
+        f"{quality_key}={quality_value}",
         pdf_path,
     ]
     proc = run_command(cmd)

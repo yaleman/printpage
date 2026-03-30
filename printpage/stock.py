@@ -56,6 +56,7 @@ def resolve_stock_compatibility(
     if stock_is_continuous:
         fits_without_rotation = matches_dimension(profile.width_mm, stock_width_mm)
         fits_with_rotation = matches_dimension(profile.height_mm, stock_width_mm)
+        should_rotate = False
     else:
         fixed_length_mm = stock_length_mm or 0.0
         fits_without_rotation = matches_dimension(
@@ -64,11 +65,16 @@ def resolve_stock_compatibility(
         fits_with_rotation = matches_dimension(
             profile.width_mm, fixed_length_mm
         ) and matches_dimension(profile.height_mm, stock_width_mm)
+        should_rotate = not fits_without_rotation and fits_with_rotation
 
-    should_rotate = not fits_without_rotation and fits_with_rotation
     stock_description = describe_stock(stock_width_mm, stock_is_continuous, stock_length_mm)
 
-    if should_rotate:
+    if stock_is_continuous and not fits_without_rotation:
+        warning_message = (
+            f"The profile width should match the loaded {stock_description}; "
+            "continuous labels will not auto-rotate."
+        )
+    elif should_rotate:
         warning_message = f"The job will auto-rotate to fit the loaded {stock_description}."
     elif not fits_without_rotation and not fits_with_rotation:
         warning_message = (
@@ -101,7 +107,7 @@ def resolve_print_layout(
 
     if stock_is_continuous:
         page_width_mm = stock_width_mm
-        page_height_mm = profile.width_mm if compatibility.should_rotate else profile.height_mm
+        page_height_mm = profile.height_mm
     else:
         page_width_mm = stock_width_mm
         page_height_mm = stock_length_mm or profile.height_mm

@@ -139,8 +139,8 @@ def test_resolve_stock_compatibility_for_continuous_and_fixed_stock() -> None:
 
     assert continuous_rotated.fits_without_rotation is False
     assert continuous_rotated.fits_with_rotation is True
-    assert continuous_rotated.should_rotate is True
-    assert "auto-rotate" in (continuous_rotated.warning_message or "")
+    assert continuous_rotated.should_rotate is False
+    assert "will not auto-rotate" in (continuous_rotated.warning_message or "")
 
     assert fixed_exact.fits_without_rotation is True
     assert fixed_exact.should_rotate is False
@@ -198,6 +198,8 @@ def test_frontend_editor_source_tracks_dirty_state_and_delete_confirmation() -> 
     assert "evaluateStockCompatibility" in source
     assert "active-stock-summary" in template
     assert "stock-warning" in template
+    assert "secondary-dimension-label" in template
+    assert "updateDimensionLabels" in source
     assert "is-continuous-toggle" not in template
     assert 'requireElement<HTMLInputElement>("is_continuous")' not in source
     assert "baselinePayloadSnapshot" in source
@@ -588,6 +590,56 @@ def test_labels_pdf_does_not_rotate_in_preview(
     assert response.status_code == 200
     assert "size: 29mm 62mm;" in captured["html"]
     assert "width: 29mm;" in captured["html"]
+    assert "height: 62mm;" in captured["html"]
+    assert 'class="label label--rotated"' not in captured["html"]
+
+
+def test_print_continuous_stock_does_not_rotate_transposed_profile(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state.save_state(
+        state.build_default_state(queue_name="QL700").model_copy(
+            update={
+                "stock_width_mm": 62,
+                "stock_is_continuous": True,
+                "stock_length_mm": None,
+            }
+        )
+    )
+    captured: dict[str, str] = {}
+
+    def fake_html_to_pdf_bytes(html: str) -> bytes:
+        captured["html"] = html
+        return b"%PDF-test"
+
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd == ["lpoptions", "-p", "QL700", "-l"]:
+            return completed(
+                cmd,
+                stdout=(
+                    "PageSize/Media Size: *62x29 62X1 62x100\n"
+                    "BrCutLabel/Cut Label: *1 2 3\n"
+                    "BrPriority/Quality: BrSpeed *BrQuality\n"
+                ),
+            )
+        if cmd[:4] == ["sudo", "/usr/sbin/lpadmin", "-p", "QL700"]:
+            return completed(cmd, stdout="applied\n")
+        if cmd[:2] == ["lp", "-d"]:
+            return completed(cmd, stdout="request id is QL700-1\n")
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    response = client.post(
+        "/print",
+        json=default_profile_payload(width_mm=40, height_mm=62, quantity=1),
+    )
+
+    assert response.status_code == 200
+    assert "size: 62mm 62mm;" in captured["html"]
+    assert "width: 40mm;" in captured["html"]
     assert "height: 62mm;" in captured["html"]
     assert 'class="label label--rotated"' not in captured["html"]
 

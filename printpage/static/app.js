@@ -3543,6 +3543,9 @@
   var borderToggle = requireElement("border-enabled-toggle");
   var borderInput = requireElement("border_enabled");
   var borderFields = requireElement("border-fields");
+  var secondaryDimensionLabel = requireElement(
+    "secondary-dimension-label"
+  );
   var activeStockSummaryEl = requireElement(
     "active-stock-summary"
   );
@@ -3663,14 +3666,19 @@
   function matchesDimension(left, right) {
     return Math.abs(left - right) <= MATCH_TOLERANCE_MM;
   }
+  function updateDimensionLabels() {
+    secondaryDimensionLabel.textContent = activeStock.stock_is_continuous ? "Length (mm)" : "Height (mm)";
+  }
   function evaluateStockCompatibility(profile, stock) {
     const fixedLength = Number(stock.stock_length_mm ?? 0);
     const fitsWithoutRotation = stock.stock_is_continuous ? matchesDimension(profile.width_mm, stock.stock_width_mm) : matchesDimension(profile.width_mm, stock.stock_width_mm) && matchesDimension(profile.height_mm, fixedLength);
     const fitsWithRotation = stock.stock_is_continuous ? matchesDimension(profile.height_mm, stock.stock_width_mm) : matchesDimension(profile.width_mm, fixedLength) && matchesDimension(profile.height_mm, stock.stock_width_mm);
-    const shouldRotate = !fitsWithoutRotation && fitsWithRotation;
+    const shouldRotate = stock.stock_is_continuous ? false : !fitsWithoutRotation && fitsWithRotation;
     const stockDescription = describeStock(stock);
     let warningMessage = null;
-    if (shouldRotate) {
+    if (stock.stock_is_continuous && !fitsWithoutRotation) {
+      warningMessage = `The profile width should match the loaded ${stockDescription}; continuous labels will not auto-rotate.`;
+    } else if (shouldRotate) {
       warningMessage = `This job will auto-rotate to fit the loaded ${stockDescription}.`;
     } else if (!fitsWithoutRotation && !fitsWithRotation) {
       warningMessage = `The profile dimensions do not match the loaded ${stockDescription} and may misprint.`;
@@ -3685,15 +3693,15 @@
   function resolvedPreviewSize(profile, stock) {
     const compatibility = evaluateStockCompatibility(profile, stock);
     return {
-      width_mm: stock.stock_width_mm,
-      height_mm: stock.stock_is_continuous ? compatibility.should_rotate ? profile.width_mm : profile.height_mm : Number(stock.stock_length_mm ?? profile.height_mm),
+      width_mm: stock.stock_is_continuous ? profile.width_mm : stock.stock_width_mm,
+      height_mm: stock.stock_is_continuous ? profile.height_mm : Number(stock.stock_length_mm ?? profile.height_mm),
       compatibility
     };
   }
   function updateStockIndicators(profile) {
     const compatibility = evaluateStockCompatibility(profile, activeStock);
     activeStockSummaryEl.textContent = describeStock(activeStock);
-    stockMatchSummaryEl.textContent = compatibility.should_rotate ? "Preview and print will auto-rotate to match the loaded stock." : compatibility.fits_without_rotation && !compatibility.warning_message ? "Profile matches the loaded stock." : "Loaded stock may not match this profile.";
+    stockMatchSummaryEl.textContent = activeStock.stock_is_continuous ? compatibility.fits_without_rotation && !compatibility.warning_message ? "Profile width matches the loaded roll; the second dimension is cut length." : "Continuous stock expects width to match the loaded roll width." : compatibility.should_rotate ? "Preview and print will auto-rotate to match the loaded stock." : compatibility.fits_without_rotation && !compatibility.warning_message ? "Profile matches the loaded stock." : "Loaded stock may not match this profile.";
     stockWarningEl.textContent = compatibility.warning_message ?? "";
     stockWarningEl.classList.toggle(
       "hidden",
@@ -3931,6 +3939,7 @@
       stock_is_continuous: Boolean(state.stock_is_continuous),
       stock_length_mm: state.stock_length_mm ?? null
     };
+    updateDimensionLabels();
     renderProfilePicker(state);
     const selectedProfile = selectedProfileFromState(state);
     currentProfileId = selectedProfile?.id ?? null;

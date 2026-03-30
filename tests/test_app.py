@@ -116,8 +116,18 @@ def test_parse_lpstat_printer_status() -> None:
 
 
 def test_resolve_stock_compatibility_for_continuous_and_fixed_stock() -> None:
-    continuous_rotated = stock.resolve_stock_compatibility(
-        models.LabelProfileInput.model_validate(default_profile_payload(width_mm=350, height_mm=62)),
+    continuous_too_wide = stock.resolve_stock_compatibility(
+        models.LabelProfileInput.model_validate(
+            default_profile_payload(width_mm=80, height_mm=20)
+        ),
+        stock_width_mm=62,
+        stock_is_continuous=True,
+        stock_length_mm=None,
+    )
+    continuous_narrow = stock.resolve_stock_compatibility(
+        models.LabelProfileInput.model_validate(
+            default_profile_payload(width_mm=40, height_mm=20)
+        ),
         stock_width_mm=62,
         stock_is_continuous=True,
         stock_length_mm=None,
@@ -137,17 +147,16 @@ def test_resolve_stock_compatibility_for_continuous_and_fixed_stock() -> None:
         stock_length_mm=29,
     )
 
-    assert continuous_rotated.fits_without_rotation is False
-    assert continuous_rotated.fits_with_rotation is True
-    assert continuous_rotated.should_rotate is False
-    assert "will not auto-rotate" in (continuous_rotated.warning_message or "")
+    assert continuous_too_wide.fits_loaded_stock is False
+    assert "only 62mm wide" in (continuous_too_wide.warning_message or "")
 
-    assert fixed_exact.fits_without_rotation is True
-    assert fixed_exact.should_rotate is False
+    assert continuous_narrow.fits_loaded_stock is True
+    assert continuous_narrow.warning_message is None
+
+    assert fixed_exact.fits_loaded_stock is True
     assert fixed_exact.warning_message is None
 
-    assert fixed_mismatch.fits_without_rotation is False
-    assert fixed_mismatch.fits_with_rotation is False
+    assert fixed_mismatch.fits_loaded_stock is False
     assert "may misprint" in (fixed_mismatch.warning_message or "")
 
 
@@ -195,11 +204,14 @@ def test_frontend_editor_source_tracks_dirty_state_and_delete_confirmation() -> 
     template = Path("printpage/templates/index.html").read_text(encoding="utf-8")
 
     assert 'alignment: "center"' in source
+    assert 'orientation: "portrait"' in source
     assert "evaluateStockCompatibility" in source
+    assert "effectiveDimensions" in source
     assert "active-stock-summary" in template
     assert "stock-warning" in template
     assert "secondary-dimension-label" in template
     assert "updateDimensionLabels" in source
+    assert 'id="orientation"' in template
     assert "is-continuous-toggle" not in template
     assert 'requireElement<HTMLInputElement>("is_continuous")' not in source
     assert "baselinePayloadSnapshot" in source
@@ -561,6 +573,34 @@ def test_labels_pdf_uses_authored_profile_dimensions_for_preview(
     assert "hello" in captured["html"]
 
 
+def test_labels_pdf_swaps_preview_dimensions_for_landscape_orientation(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, str] = {}
+
+    def fake_html_to_pdf_bytes(html: str) -> bytes:
+        captured["html"] = html
+        return b"%PDF-test"
+
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
+
+    response = client.post(
+        "/labels.pdf",
+        json=default_profile_payload(
+            width_mm=20,
+            height_mm=62,
+            orientation="landscape",
+            quantity=1,
+        ),
+    )
+
+    assert response.status_code == 200
+    assert "size: 62mm 20mm;" in captured["html"]
+    assert "width: 62mm;" in captured["html"]
+    assert "height: 20mm;" in captured["html"]
+
+
 def test_labels_pdf_does_not_rotate_in_preview(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -591,7 +631,7 @@ def test_labels_pdf_does_not_rotate_in_preview(
     assert "size: 29mm 62mm;" in captured["html"]
     assert "width: 29mm;" in captured["html"]
     assert "height: 62mm;" in captured["html"]
-    assert 'class="label label--rotated"' not in captured["html"]
+    assert "label--rotated" not in captured["html"]
 
 
 def test_print_continuous_stock_does_not_rotate_transposed_profile(
@@ -641,7 +681,62 @@ def test_print_continuous_stock_does_not_rotate_transposed_profile(
     assert "size: 62mm 62mm;" in captured["html"]
     assert "width: 40mm;" in captured["html"]
     assert "height: 62mm;" in captured["html"]
-    assert 'class="label label--rotated"' not in captured["html"]
+    assert "label--rotated" not in captured["html"]
+
+
+def test_print_uses_explicit_landscape_orientation_without_auto_rotation(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state.save_state(
+        state.build_default_state(queue_name="QL700").model_copy(
+            update={
+                "stock_width_mm": 62,
+                "stock_is_continuous": False,
+                "stock_length_mm": 29,
+            }
+        )
+    )
+    captured: dict[str, str] = {}
+
+    def fake_html_to_pdf_bytes(html: str) -> bytes:
+        captured["html"] = html
+        return b"%PDF-test"
+
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd == ["lpoptions", "-p", "QL700", "-l"]:
+            return completed(
+                cmd,
+                stdout=(
+                    "PageSize/Media Size: *62x29 62X1 62x100\n"
+                    "BrCutLabel/Cut Label: *1 2 3\n"
+                    "BrPriority/Quality: BrSpeed *BrQuality\n"
+                ),
+            )
+        if cmd[:4] == ["sudo", "/usr/sbin/lpadmin", "-p", "QL700"]:
+            return completed(cmd, stdout="applied\n")
+        if cmd[:2] == ["lp", "-d"]:
+            return completed(cmd, stdout="request id is QL700-1\n")
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    response = client.post(
+        "/print",
+        json=default_profile_payload(
+            width_mm=29,
+            height_mm=62,
+            orientation="landscape",
+            quantity=1,
+        ),
+    )
+
+    assert response.status_code == 200
+    assert "size: 62mm 29mm;" in captured["html"]
+    assert "width: 62mm;" in captured["html"]
+    assert "height: 29mm;" in captured["html"]
+    assert "label--rotated" not in captured["html"]
 
 
 def test_labels_pdf_renders_optional_border(

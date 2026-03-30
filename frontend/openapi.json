@@ -126,6 +126,11 @@
             "title": "Name",
             "type": "string"
           },
+          "orientation": {
+            "default": "portrait",
+            "title": "Orientation",
+            "type": "string"
+          },
           "quality": {
             "default": "BrQuality",
             "title": "Quality",
@@ -181,6 +186,11 @@
             "maxLength": 100,
             "minLength": 1,
             "title": "Name",
+            "type": "string"
+          },
+          "orientation": {
+            "default": "portrait",
+            "title": "Orientation",
             "type": "string"
           },
           "quality": {

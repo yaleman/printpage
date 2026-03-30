@@ -42,6 +42,7 @@ type ProfileDraft = {
 	border: BorderDraft;
 	width_mm: number;
 	height_mm: number;
+	orientation: "portrait" | "landscape";
 	cut_every: number;
 	quality: string;
 	quantity: number;
@@ -54,9 +55,7 @@ type ActiveStock = {
 };
 
 type StockCompatibility = {
-	fits_without_rotation: boolean;
-	fits_with_rotation: boolean;
-	should_rotate: boolean;
+	fits_loaded_stock: boolean;
 	warning_message: string | null;
 };
 
@@ -81,6 +80,7 @@ const DEFAULT_DRAFT: ProfileDraft = {
 	},
 	width_mm: 62,
 	height_mm: 29,
+	orientation: "portrait",
 	cut_every: 1,
 	quality: "BrQuality",
 	quantity: 1,
@@ -298,73 +298,77 @@ function updateDimensionLabels(): void {
 		: "Height (mm)";
 }
 
+function effectiveDimensions(
+	profile: Pick<ProfileDraft, "width_mm" | "height_mm" | "orientation">,
+): { width_mm: number; height_mm: number } {
+	return profile.orientation === "landscape"
+		? {
+				width_mm: profile.height_mm,
+				height_mm: profile.width_mm,
+			}
+		: {
+				width_mm: profile.width_mm,
+				height_mm: profile.height_mm,
+			};
+}
+
 function evaluateStockCompatibility(
-	profile: Pick<ProfileDraft, "width_mm" | "height_mm">,
+	profile: Pick<ProfileDraft, "width_mm" | "height_mm" | "orientation">,
 	stock: ActiveStock,
 ): StockCompatibility {
+	const effective = effectiveDimensions(profile);
 	const fixedLength = Number(stock.stock_length_mm ?? 0);
-	const fitsWithoutRotation = stock.stock_is_continuous
-		? matchesDimension(profile.width_mm, stock.stock_width_mm)
-		: matchesDimension(profile.width_mm, stock.stock_width_mm) &&
-			matchesDimension(profile.height_mm, fixedLength);
-	const fitsWithRotation = stock.stock_is_continuous
-		? matchesDimension(profile.height_mm, stock.stock_width_mm)
-		: matchesDimension(profile.width_mm, fixedLength) &&
-			matchesDimension(profile.height_mm, stock.stock_width_mm);
-	const shouldRotate = stock.stock_is_continuous
-		? false
-		: !fitsWithoutRotation && fitsWithRotation;
+	const fitsLoadedStock = stock.stock_is_continuous
+		? effective.width_mm <= stock.stock_width_mm + MATCH_TOLERANCE_MM
+		: matchesDimension(effective.width_mm, stock.stock_width_mm) &&
+			matchesDimension(effective.height_mm, fixedLength);
 	const stockDescription = describeStock(stock);
 
 	let warningMessage: string | null = null;
-	if (stock.stock_is_continuous && !fitsWithoutRotation) {
+	if (stock.stock_is_continuous && !fitsLoadedStock) {
 		warningMessage =
-			`The profile width should match the loaded ${stockDescription}; ` +
-			"continuous labels will not auto-rotate.";
-	} else if (shouldRotate) {
-		warningMessage = `This job will auto-rotate to fit the loaded ${stockDescription}.`;
-	} else if (!fitsWithoutRotation && !fitsWithRotation) {
-		warningMessage = `The profile dimensions do not match the loaded ${stockDescription} and may misprint.`;
+			`The ${profile.orientation} layout is ${effective.width_mm} mm wide, ` +
+			`but the loaded ${stockDescription} is only ${stock.stock_width_mm} mm wide.`;
+	} else if (!fitsLoadedStock) {
+		warningMessage =
+			`The ${profile.orientation} layout does not match the loaded ` +
+			`${stockDescription} and may misprint.`;
 	}
 
 	return {
-		fits_without_rotation: fitsWithoutRotation,
-		fits_with_rotation: fitsWithRotation,
-		should_rotate: shouldRotate,
+		fits_loaded_stock: fitsLoadedStock,
 		warning_message: warningMessage,
 	};
 }
 
 function resolvedPreviewSize(
-	profile: Pick<ProfileDraft, "width_mm" | "height_mm">,
+	profile: Pick<ProfileDraft, "width_mm" | "height_mm" | "orientation">,
 	stock: ActiveStock,
 ): { width_mm: number; height_mm: number; compatibility: StockCompatibility } {
 	const compatibility = evaluateStockCompatibility(profile, stock);
+	const effective = effectiveDimensions(profile);
 	return {
-		width_mm: stock.stock_is_continuous
-			? profile.width_mm
-			: stock.stock_width_mm,
-		height_mm: stock.stock_is_continuous
-			? profile.height_mm
-			: Number(stock.stock_length_mm ?? profile.height_mm),
+		width_mm: effective.width_mm,
+		height_mm: effective.height_mm,
 		compatibility,
 	};
 }
 
 function updateStockIndicators(
-	profile: Pick<ProfileDraft, "width_mm" | "height_mm">,
+	profile: Pick<ProfileDraft, "width_mm" | "height_mm" | "orientation">,
 ): void {
 	const compatibility = evaluateStockCompatibility(profile, activeStock);
+	const effective = effectiveDimensions(profile);
 	activeStockSummaryEl.textContent = describeStock(activeStock);
 	stockMatchSummaryEl.textContent = activeStock.stock_is_continuous
-		? compatibility.fits_without_rotation && !compatibility.warning_message
-			? "Profile width matches the loaded roll; the second dimension is cut length."
-			: "Continuous stock expects width to match the loaded roll width."
-		: compatibility.should_rotate
-			? "Preview and print will auto-rotate to match the loaded stock."
-			: compatibility.fits_without_rotation && !compatibility.warning_message
-				? "Profile matches the loaded stock."
-				: "Loaded stock may not match this profile.";
+		? compatibility.fits_loaded_stock
+			? effective.width_mm < activeStock.stock_width_mm - MATCH_TOLERANCE_MM
+				? `This ${profile.orientation} design is narrower than the loaded roll and will leave unused width.`
+				: "This design fits the loaded roll width."
+			: "The selected orientation is too wide for the loaded roll."
+		: compatibility.fits_loaded_stock
+			? "This design matches the loaded stock."
+			: "Loaded stock may not match this design.";
 	stockWarningEl.textContent = compatibility.warning_message ?? "";
 	stockWarningEl.classList.toggle(
 		"hidden",
@@ -373,7 +377,10 @@ function updateStockIndicators(
 }
 
 function updatePreviewMeta(
-	profile: Pick<ProfileDraft, "width_mm" | "height_mm" | "quantity">,
+	profile: Pick<
+		ProfileDraft,
+		"width_mm" | "height_mm" | "orientation" | "quantity"
+	>,
 ): void {
 	const resolved = resolvedPreviewSize(profile, activeStock);
 	const width = Number(resolved.width_mm || 0);
@@ -402,6 +409,10 @@ function cloneRows(rows?: LabelRowInput[]): RowDraft[] {
 	}));
 }
 
+function normalizeOrientation(value?: string): "portrait" | "landscape" {
+	return value === "landscape" ? "landscape" : "portrait";
+}
+
 function normalizeProfile(profile: EditableProfile): ProfileDraft {
 	return {
 		name: profile.name,
@@ -409,6 +420,7 @@ function normalizeProfile(profile: EditableProfile): ProfileDraft {
 		border: normalizeBorder(profile.border),
 		width_mm: profile.width_mm,
 		height_mm: profile.height_mm,
+		orientation: normalizeOrientation(profile.orientation),
 		cut_every: profile.cut_every ?? DEFAULT_DRAFT.cut_every,
 		quality: profile.quality ?? DEFAULT_DRAFT.quality,
 		quantity: profile.quantity ?? DEFAULT_DRAFT.quantity,
@@ -576,6 +588,9 @@ function getPayload(): LabelProfileInput {
 		},
 		width_mm: Number(requireElement<HTMLInputElement>("width_mm").value),
 		height_mm: Number(requireElement<HTMLInputElement>("height_mm").value),
+		orientation: requireElement<HTMLSelectElement>("orientation").value as
+			| "portrait"
+			| "landscape",
 		cut_every: Number(requireElement<HTMLInputElement>("cut_every").value),
 		quality: requireElement<HTMLSelectElement>("quality").value,
 		quantity: Number(requireElement<HTMLInputElement>("quantity").value),
@@ -596,6 +611,8 @@ function fillForm(profile: EditableProfile): void {
 	requireElement<HTMLInputElement>("height_mm").value = String(
 		normalizedProfile.height_mm,
 	);
+	requireElement<HTMLSelectElement>("orientation").value =
+		normalizedProfile.orientation;
 	requireElement<HTMLSelectElement>("quality").value =
 		normalizedProfile.quality;
 	requireElement<HTMLInputElement>("cut_every").value = String(

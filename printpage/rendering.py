@@ -19,7 +19,7 @@ def mm_to_css(value: float) -> str:
     return f"{value:g}"
 
 
-def label_dimensions_mm(layout: ResolvedPrintLayout) -> dict[str, str | bool]:
+def label_dimensions_mm(layout: ResolvedPrintLayout) -> dict[str, str]:
     page_width = max(layout.page_width_mm - (LABEL_MARGIN_MM * 2), 1.0)
     page_height = max(layout.page_height_mm - (LABEL_MARGIN_MM * 2), 1.0)
     content_width = max(layout.content_width_mm, 1.0)
@@ -30,8 +30,6 @@ def label_dimensions_mm(layout: ResolvedPrintLayout) -> dict[str, str | bool]:
         "content_width_mm": mm_to_css(content_width),
         "content_height_mm": mm_to_css(content_height),
         "margin_mm": mm_to_css(LABEL_MARGIN_MM),
-        "rotation_offset_mm": mm_to_css(layout.page_width_mm),
-        "should_rotate": layout.should_rotate,
     }
 
 

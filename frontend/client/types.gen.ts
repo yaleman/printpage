@@ -88,6 +88,10 @@ export type LabelProfile = {
      */
     name: string;
     /**
+     * Orientation
+     */
+    orientation?: string;
+    /**
      * Quality
      */
     quality?: string;
@@ -122,6 +126,10 @@ export type LabelProfileInput = {
      * Name
      */
     name: string;
+    /**
+     * Orientation
+     */
+    orientation?: string;
     /**
      * Quality
      */

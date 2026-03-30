@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, model_validator
 DEFAULT_PROFILE_NAME = "Default label"
 DEFAULT_WIDTH_MM = 62.0
 DEFAULT_HEIGHT_MM = 29.0
+DEFAULT_ORIENTATION = "portrait"
 DEFAULT_STOCK_WIDTH_MM = 62.0
 DEFAULT_STOCK_LENGTH_MM = 29.0
 DEFAULT_CUT_EVERY = 1
@@ -15,6 +16,7 @@ DEFAULT_BORDER_INSET_MM = 1.0
 DEFAULT_BORDER_RADIUS_MM = 1.5
 ROW_LEVELS = {"normal", "h1", "h2", "h3", "h4", "h5", "h6"}
 ROW_ALIGNMENTS = {"left", "center", "right", "justify"}
+ORIENTATIONS = {"portrait", "landscape"}
 
 
 class LabelRowInput(BaseModel):
@@ -51,6 +53,7 @@ class LabelProfileInput(BaseModel):
     border: LabelBorderInput = Field(default_factory=LabelBorderInput)
     width_mm: float = Field(..., gt=0)
     height_mm: float = Field(..., gt=0)
+    orientation: str = Field(default=DEFAULT_ORIENTATION)
     cut_every: int = Field(default=DEFAULT_CUT_EVERY, ge=1)
     quality: str = Field(default=DEFAULT_QUALITY)
     quantity: int = Field(default=DEFAULT_QUANTITY, ge=1)
@@ -59,9 +62,12 @@ class LabelProfileInput(BaseModel):
     def normalize_strings(self) -> "LabelProfileInput":
         self.name = self.name.strip()
         self.quality = self.quality.strip()
+        self.orientation = self.orientation.strip().lower()
 
         if self.quality not in {"BrSpeed", "BrQuality"}:
             raise ValueError("quality must be BrSpeed or BrQuality")
+        if self.orientation not in ORIENTATIONS:
+            raise ValueError("orientation must be portrait or landscape")
         if not self.name:
             raise ValueError("name cannot be empty")
 
@@ -187,6 +193,7 @@ def default_profile() -> LabelProfile:
         border=LabelBorderInput(),
         width_mm=DEFAULT_WIDTH_MM,
         height_mm=DEFAULT_HEIGHT_MM,
+        orientation=DEFAULT_ORIENTATION,
         cut_every=DEFAULT_CUT_EVERY,
         quality=DEFAULT_QUALITY,
         quantity=DEFAULT_QUANTITY,

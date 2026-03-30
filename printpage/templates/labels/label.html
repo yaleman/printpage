@@ -29,11 +29,6 @@
       box-sizing: border-box;
     }
 
-    .label--rotated {
-      transform: translateX({{ rotation_offset_mm }}mm) rotate(90deg);
-      transform-origin: top left;
-    }
-
     .border {
       position: absolute;
       top: {{ border_inset_mm }}mm;
@@ -124,7 +119,7 @@
     </head>
     <body>
         <div class="page">
-            <div class="label{% if should_rotate %} label--rotated{% endif %}">
+            <div class="label">
                 {% if border.enabled %}
                 <div class="border"></div>
                 {% endif %}

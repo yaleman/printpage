@@ -98,11 +98,27 @@ def media_size_value(width_mm: float, height_mm: float) -> str:
     return f"{mm_to_css(width_mm)}x{mm_to_css(height_mm)}"
 
 
-def cups_media_value(width_mm: float, height_mm: float, *, use_custom: bool) -> str:
-    base_value = media_size_value(width_mm, height_mm)
-    if use_custom:
-        return f"Custom.{base_value}mm"
-    return base_value
+def continuous_roll_media_value(
+    width_mm: float,
+    choices: dict[str, dict[str, str | list[str] | None]],
+) -> str:
+    page_size_choices = choices.get("PageSize", {}).get("choices")
+    if not isinstance(page_size_choices, list):
+        raise HTTPException(
+            status_code=400,
+            detail="Queue does not advertise PageSize choices for continuous roll media",
+        )
+
+    width_token = mm_to_css(width_mm).replace(".0", "")
+    preferred_value = f"{width_token}X1"
+    for choice in page_size_choices:
+        if choice.upper() == preferred_value.upper():
+            return choice
+
+    raise HTTPException(
+        status_code=400,
+        detail=f"Queue does not advertise a continuous roll PageSize for {width_token}mm stock",
+    )
 
 
 def validate_profile_options(
@@ -147,10 +163,10 @@ def apply_profile_to_printer(
 ) -> tuple[str, str, str]:
     choices = get_queue_choices(queue_name)
     cut_value, quality_key = validate_profile_options(queue_name, profile, choices)
-    size_value = cups_media_value(
-        layout.page_width_mm,
-        layout.page_height_mm,
-        use_custom=layout.use_custom_media_size,
+    size_value = (
+        continuous_roll_media_value(layout.page_width_mm, choices)
+        if layout.is_continuous_roll_media
+        else media_size_value(layout.page_width_mm, layout.page_height_mm)
     )
 
     cmd = [

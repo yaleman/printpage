@@ -205,6 +205,8 @@ def test_docker_sources_seed_fake_cups_queue() -> None:
     assert "sudo" in dockerfile
     assert "FileDevice Yes" in dockerfile
     assert "FAKE_QUEUE_NAME" in entrypoint
+    assert "cups-files.conf" in entrypoint
+    assert "FileDevice Yes" in entrypoint
     assert 'file:$FAKE_QUEUE_OUTPUT' in entrypoint
     assert "fake-brother-ql700.ppd" in entrypoint
     assert "*OpenUI *BrCutLabel/Cut Label: PickOne" in ppd
@@ -529,6 +531,7 @@ def test_print_applies_profile_then_submits_lp_job(
             return completed(
                 cmd,
                 stdout=(
+                    "PageSize/Media Size: *62x29 62X1 62x100\n"
                     "BrCutLabel/Cut Label: *1 2 3\n"
                     "BrPriority/Quality: BrSpeed *BrQuality\n"
                 ),
@@ -629,6 +632,7 @@ def test_print_uses_loaded_continuous_stock_for_rotated_jobs(
             return completed(
                 cmd,
                 stdout=(
+                    "PageSize/Media Size: *62x29 62X1 62x100\n"
                     "BrCutLabel/Cut Label: *1 2 3\n"
                     "BrPriority/Quality: BrSpeed *BrQuality\n"
                 ),
@@ -654,9 +658,9 @@ def test_print_uses_loaded_continuous_stock_for_rotated_jobs(
         "-p",
         "QL700",
         "-o",
-        "PageSize=Custom.62x350mm",
+        "PageSize=62X1",
         "-o",
-        "media=Custom.62x350mm",
+        "media=62X1",
         "-o",
         "BrCutLabel=1",
         "-o",
@@ -666,7 +670,7 @@ def test_print_uses_loaded_continuous_stock_for_rotated_jobs(
     ]
     assert commands[2][5:13] == [
         "-o",
-        "media=Custom.62x350mm",
+        "media=62X1",
         "-o",
         "BrCutLabel=1",
         "-o",

@@ -57,4 +57,32 @@
   .panel-card {
     @apply rounded-xl border border-stone-200 bg-white shadow-sm;
   }
+
+  .json-panel-heading {
+    @apply flex items-center justify-between gap-4;
+  }
+
+  .inline-copy-control {
+    @apply ml-auto text-xs font-medium tracking-[0.08em] text-stone-500 transition hover:text-stone-700 focus:outline-none focus:text-stone-900;
+  }
+
+  .json-key {
+    @apply text-amber-300;
+  }
+
+  .json-string {
+    @apply text-emerald-300;
+  }
+
+  .json-number {
+    @apply text-sky-300;
+  }
+
+  .json-boolean {
+    @apply text-orange-300;
+  }
+
+  .json-null {
+    @apply text-fuchsia-300;
+  }
 }

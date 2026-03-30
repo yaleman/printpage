@@ -3440,6 +3440,8 @@
 
   // frontend/src/config.ts
   configureApiClient();
+  var COPY_BUTTON_RESET_DELAY_MS = 1500;
+  var JSON_TOKEN_PATTERN = /("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(?:\s*:)?|\b-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?\b|\btrue\b|\bfalse\b|\bnull\b)/g;
   function requireElement(id) {
     const element = document.getElementById(id);
     if (!element) {
@@ -3452,6 +3454,51 @@
   }
   function describeStock(data) {
     return data.stock_is_continuous ? `Continuous ${formatMm(data.stock_width_mm)} roll is loaded.` : `${formatMm(data.stock_width_mm)} x ${formatMm(data.stock_length_mm)} fixed labels are loaded.`;
+  }
+  function escapeHtml(value) {
+    return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function highlightJson(json) {
+    let html = "";
+    let lastIndex = 0;
+    for (const match of json.matchAll(JSON_TOKEN_PATTERN)) {
+      const matchedText = match[0];
+      const matchIndex = match.index ?? 0;
+      let tokenClass = "json-number";
+      html += escapeHtml(json.slice(lastIndex, matchIndex));
+      if (matchedText.startsWith('"')) {
+        tokenClass = matchedText.endsWith(":") ? "json-key" : "json-string";
+      } else if (matchedText === "true" || matchedText === "false") {
+        tokenClass = "json-boolean";
+      } else if (matchedText === "null") {
+        tokenClass = "json-null";
+      }
+      html += `<span class="${tokenClass}">${escapeHtml(matchedText)}</span>`;
+      lastIndex = matchIndex + matchedText.length;
+    }
+    html += escapeHtml(json.slice(lastIndex));
+    return html;
+  }
+  function formatJson(value) {
+    return JSON.stringify(value, null, 2);
+  }
+  function resetCopyLabel(panel) {
+    if (panel.resetTimer !== null) {
+      window.clearTimeout(panel.resetTimer);
+    }
+    panel.resetTimer = window.setTimeout(() => {
+      panel.copyButton.textContent = "Copy";
+      panel.resetTimer = null;
+    }, COPY_BUTTON_RESET_DELAY_MS);
+  }
+  function renderPlainText(panel, text) {
+    panel.copyText = text;
+    panel.element.textContent = text;
+  }
+  function renderHighlightedJson(panel, value) {
+    const json = formatJson(value);
+    panel.copyText = json;
+    panel.element.innerHTML = highlightJson(json);
   }
   var configForm = requireElement("config-form");
   var queueSelect = requireElement("queue_name");
@@ -3469,6 +3516,20 @@
   var statusEl = requireElement("status");
   var configStateEl = requireElement("config-state");
   var queueOptionsEl = requireElement("queue-options");
+  var copyConfigStateButton = requireElement("copy-config-state");
+  var copyQueueOptionsButton = requireElement("copy-queue-options");
+  var configStatePanel = {
+    copyButton: copyConfigStateButton,
+    copyText: configStateEl.textContent ?? "",
+    element: configStateEl,
+    resetTimer: null
+  };
+  var queueOptionsPanel = {
+    copyButton: copyQueueOptionsButton,
+    copyText: queueOptionsEl.textContent ?? "",
+    element: queueOptionsEl,
+    resetTimer: null
+  };
   function setStatus(message, isError = false) {
     statusEl.textContent = message;
     statusEl.dataset.state = isError ? "error" : "idle";
@@ -3502,19 +3563,31 @@
     stockLengthInput.value = data.stock_length_mm == null ? "" : String(data.stock_length_mm);
     updateLengthVisibility();
     updateStockSummary();
-    configStateEl.textContent = JSON.stringify(data, null, 2);
+    renderHighlightedJson(configStatePanel, data);
   }
   function renderQueueOptions(data) {
-    queueOptionsEl.textContent = JSON.stringify(data, null, 2);
+    renderHighlightedJson(queueOptionsPanel, data);
+  }
+  async function copyPanelText(panel) {
+    try {
+      await navigator.clipboard.writeText(panel.copyText);
+      panel.copyButton.textContent = "Copied";
+    } catch (error) {
+      console.error(error);
+      panel.copyButton.textContent = "Copy failed";
+    }
+    resetCopyLabel(panel);
   }
   async function loadConfig() {
     setStatus("Loading queues...");
+    renderPlainText(configStatePanel, "Loading...");
     try {
       const response = await getConfigApiConfigGet({ throwOnError: true });
       renderConfig(response.data);
       setStatus("Queues loaded.");
     } catch (error) {
       console.error(error);
+      renderPlainText(configStatePanel, getErrorMessage(error));
       setStatus(getErrorMessage(error), true);
     }
   }
@@ -3543,7 +3616,7 @@
   });
   queryOptionsButton.addEventListener("click", async () => {
     setStatus(`Querying ${queueSelect.value} options...`);
-    queueOptionsEl.textContent = "Loading queue options...";
+    renderPlainText(queueOptionsPanel, "Loading queue options...");
     try {
       const response = await getConfigOptionsApiConfigOptionsGet({
         query: { queue_name: queueSelect.value },
@@ -3553,9 +3626,15 @@
       setStatus(`Queue options loaded for ${queueSelect.value}.`);
     } catch (error) {
       console.error(error);
-      queueOptionsEl.textContent = getErrorMessage(error);
+      renderPlainText(queueOptionsPanel, getErrorMessage(error));
       setStatus(getErrorMessage(error), true);
     }
+  });
+  copyConfigStateButton.addEventListener("click", () => {
+    void copyPanelText(configStatePanel);
+  });
+  copyQueueOptionsButton.addEventListener("click", () => {
+    void copyPanelText(queueOptionsPanel);
   });
   stockWidthInput.addEventListener("input", updateStockSummary);
   stockLengthInput.addEventListener("input", updateStockSummary);

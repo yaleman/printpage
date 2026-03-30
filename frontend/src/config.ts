@@ -11,6 +11,17 @@ import { configureApiClient, getErrorMessage } from "./api";
 
 configureApiClient();
 
+const COPY_BUTTON_RESET_DELAY_MS = 1500;
+const JSON_TOKEN_PATTERN =
+	/("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(?:\s*:)?|\b-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?\b|\btrue\b|\bfalse\b|\bnull\b)/g;
+
+type JsonPanel = {
+	copyButton: HTMLButtonElement;
+	copyText: string;
+	element: HTMLElement;
+	resetTimer: number | null;
+};
+
 function requireElement<T extends HTMLElement>(id: string): T {
 	const element = document.getElementById(id);
 	if (!element) {
@@ -35,6 +46,66 @@ function describeStock(
 		: `${formatMm(data.stock_width_mm)} x ${formatMm(data.stock_length_mm)} fixed labels are loaded.`;
 }
 
+function escapeHtml(value: string): string {
+	return value
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;");
+}
+
+function highlightJson(json: string): string {
+	let html = "";
+	let lastIndex = 0;
+
+	for (const match of json.matchAll(JSON_TOKEN_PATTERN)) {
+		const matchedText = match[0];
+		const matchIndex = match.index ?? 0;
+		let tokenClass = "json-number";
+
+		html += escapeHtml(json.slice(lastIndex, matchIndex));
+
+		if (matchedText.startsWith('"')) {
+			tokenClass = matchedText.endsWith(":") ? "json-key" : "json-string";
+		} else if (matchedText === "true" || matchedText === "false") {
+			tokenClass = "json-boolean";
+		} else if (matchedText === "null") {
+			tokenClass = "json-null";
+		}
+
+		html += `<span class="${tokenClass}">${escapeHtml(matchedText)}</span>`;
+		lastIndex = matchIndex + matchedText.length;
+	}
+
+	html += escapeHtml(json.slice(lastIndex));
+	return html;
+}
+
+function formatJson(value: unknown): string {
+	return JSON.stringify(value, null, 2);
+}
+
+function resetCopyLabel(panel: JsonPanel): void {
+	if (panel.resetTimer !== null) {
+		window.clearTimeout(panel.resetTimer);
+	}
+
+	panel.resetTimer = window.setTimeout(() => {
+		panel.copyButton.textContent = "Copy";
+		panel.resetTimer = null;
+	}, COPY_BUTTON_RESET_DELAY_MS);
+}
+
+function renderPlainText(panel: JsonPanel, text: string): void {
+	panel.copyText = text;
+	panel.element.textContent = text;
+}
+
+function renderHighlightedJson(panel: JsonPanel, value: unknown): void {
+	const json = formatJson(value);
+	panel.copyText = json;
+	panel.element.innerHTML = highlightJson(json);
+}
+
 const configForm = requireElement<HTMLFormElement>("config-form");
 const queueSelect = requireElement<HTMLSelectElement>("queue_name");
 const stockWidthInput = requireElement<HTMLInputElement>("stock_width_mm");
@@ -51,6 +122,23 @@ const refreshButton = requireElement<HTMLButtonElement>("refresh-button");
 const statusEl = requireElement<HTMLElement>("status");
 const configStateEl = requireElement<HTMLElement>("config-state");
 const queueOptionsEl = requireElement<HTMLElement>("queue-options");
+const copyConfigStateButton =
+	requireElement<HTMLButtonElement>("copy-config-state");
+const copyQueueOptionsButton =
+	requireElement<HTMLButtonElement>("copy-queue-options");
+
+const configStatePanel: JsonPanel = {
+	copyButton: copyConfigStateButton,
+	copyText: configStateEl.textContent ?? "",
+	element: configStateEl,
+	resetTimer: null,
+};
+const queueOptionsPanel: JsonPanel = {
+	copyButton: copyQueueOptionsButton,
+	copyText: queueOptionsEl.textContent ?? "",
+	element: queueOptionsEl,
+	resetTimer: null,
+};
 
 function setStatus(message: string, isError = false): void {
 	statusEl.textContent = message;
@@ -95,17 +183,30 @@ function renderConfig(data: QueueState): void {
 		data.stock_length_mm == null ? "" : String(data.stock_length_mm);
 	updateLengthVisibility();
 	updateStockSummary();
-	configStateEl.textContent = JSON.stringify(data, null, 2);
+	renderHighlightedJson(configStatePanel, data);
 }
 
 function renderQueueOptions(
 	data: GetConfigOptionsApiConfigOptionsGetResponse,
 ): void {
-	queueOptionsEl.textContent = JSON.stringify(data, null, 2);
+	renderHighlightedJson(queueOptionsPanel, data);
+}
+
+async function copyPanelText(panel: JsonPanel): Promise<void> {
+	try {
+		await navigator.clipboard.writeText(panel.copyText);
+		panel.copyButton.textContent = "Copied";
+	} catch (error) {
+		console.error(error);
+		panel.copyButton.textContent = "Copy failed";
+	}
+
+	resetCopyLabel(panel);
 }
 
 async function loadConfig(): Promise<void> {
 	setStatus("Loading queues...");
+	renderPlainText(configStatePanel, "Loading...");
 
 	try {
 		const response = await getConfigApiConfigGet({ throwOnError: true });
@@ -113,6 +214,7 @@ async function loadConfig(): Promise<void> {
 		setStatus("Queues loaded.");
 	} catch (error) {
 		console.error(error);
+		renderPlainText(configStatePanel, getErrorMessage(error));
 		setStatus(getErrorMessage(error), true);
 	}
 }
@@ -147,7 +249,7 @@ refreshButton.addEventListener("click", () => {
 
 queryOptionsButton.addEventListener("click", async () => {
 	setStatus(`Querying ${queueSelect.value} options...`);
-	queueOptionsEl.textContent = "Loading queue options...";
+	renderPlainText(queueOptionsPanel, "Loading queue options...");
 
 	try {
 		const response = await getConfigOptionsApiConfigOptionsGet({
@@ -158,9 +260,17 @@ queryOptionsButton.addEventListener("click", async () => {
 		setStatus(`Queue options loaded for ${queueSelect.value}.`);
 	} catch (error) {
 		console.error(error);
-		queueOptionsEl.textContent = getErrorMessage(error);
+		renderPlainText(queueOptionsPanel, getErrorMessage(error));
 		setStatus(getErrorMessage(error), true);
 	}
+});
+
+copyConfigStateButton.addEventListener("click", () => {
+	void copyPanelText(configStatePanel);
+});
+
+copyQueueOptionsButton.addEventListener("click", () => {
+	void copyPanelText(queueOptionsPanel);
 });
 
 stockWidthInput.addEventListener("input", updateStockSummary);

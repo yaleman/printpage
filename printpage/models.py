@@ -1,3 +1,4 @@
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, model_validator
@@ -17,6 +18,10 @@ DEFAULT_BORDER_RADIUS_MM = 1.5
 ROW_LEVELS = {"normal", "h1", "h2", "h3", "h4", "h5", "h6"}
 ROW_ALIGNMENTS = {"left", "center", "right", "justify"}
 ORIENTATIONS = {"portrait", "landscape"}
+
+
+def round_mm(value: float) -> float:
+    return float(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
 class LabelRowInput(BaseModel):
@@ -89,6 +94,7 @@ class AppState(BaseModel):
     @model_validator(mode="after")
     def normalize_profiles(self) -> "AppState":
         self.queue_name = self.queue_name.strip()
+        self.stock_width_mm = round_mm(self.stock_width_mm)
         if not self.queue_name:
             raise ValueError("queue_name cannot be empty")
         if self.stock_is_continuous:
@@ -116,6 +122,7 @@ class QueueConfig(BaseModel):
     @model_validator(mode="after")
     def normalize_queue_name(self) -> "QueueConfig":
         self.queue_name = self.queue_name.strip()
+        self.stock_width_mm = round_mm(self.stock_width_mm)
         if not self.queue_name:
             raise ValueError("queue_name cannot be empty")
         if self.stock_is_continuous:
@@ -138,6 +145,7 @@ class QueueState(BaseModel):
     @model_validator(mode="after")
     def normalize_stock(self) -> "QueueState":
         self.queue_name = self.queue_name.strip()
+        self.stock_width_mm = round_mm(self.stock_width_mm)
         if not self.queue_name:
             raise ValueError("queue_name cannot be empty")
         if self.stock_is_continuous:

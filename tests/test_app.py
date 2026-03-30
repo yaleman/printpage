@@ -435,6 +435,37 @@ def test_get_and_post_config_manage_queue_and_stock(
     assert "profiles" in saved_state
 
 
+def test_config_rounds_stock_width_to_two_decimals(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd == ["lpstat", "-p", "-d"]:
+            return completed(
+                cmd,
+                stdout="printer QL700 is idle.\nsystem default destination: QL700\n",
+            )
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    response = client.post(
+        "/api/config",
+        json={
+            "queue_name": "QL700",
+            "stock_width_mm": 62.345,
+            "stock_is_continuous": True,
+            "stock_length_mm": None,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["stock_width_mm"] == 62.35
+
+    saved_state = json.loads(state.CONFIG_PATH.read_text(encoding="utf-8"))
+    assert saved_state["stock_width_mm"] == 62.35
+
+
 def test_get_config_options_returns_parsed_lpoptions(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

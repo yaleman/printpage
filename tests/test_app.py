@@ -154,6 +154,16 @@ def test_resolve_stock_compatibility_for_continuous_and_fixed_stock() -> None:
         stock_is_continuous=True,
         stock_length_mm=None,
     )
+    continuous_exact_width_match_prefers_switched_orientation = (
+        stock.resolve_stock_compatibility(
+            models.LabelProfileInput.model_validate(
+                default_profile_payload(width_mm=22, height_mm=61.98)
+            ),
+            stock_width_mm=61.98,
+            stock_is_continuous=True,
+            stock_length_mm=None,
+        )
+    )
     fixed_exact = stock.resolve_stock_compatibility(
         models.LabelProfileInput.model_validate(default_profile_payload()),
         stock_width_mm=62,
@@ -182,6 +192,16 @@ def test_resolve_stock_compatibility_for_continuous_and_fixed_stock() -> None:
     assert continuous_narrow.fits_loaded_stock is True
     assert continuous_narrow.fit_mode == "fits_selected"
     assert continuous_narrow.message is None
+
+    assert continuous_exact_width_match_prefers_switched_orientation.fits_loaded_stock is True
+    assert continuous_exact_width_match_prefers_switched_orientation.fit_mode == "fits_auto_switched"
+    assert (
+        continuous_exact_width_match_prefers_switched_orientation.applied_orientation
+        == "landscape"
+    )
+    assert "matches the loaded continuous 61.98mm roll" in (
+        continuous_exact_width_match_prefers_switched_orientation.message or ""
+    )
 
     assert fixed_exact.fits_loaded_stock is True
     assert fixed_exact.fit_mode == "fits_selected"
@@ -761,7 +781,7 @@ def test_labels_pdf_keeps_authored_orientation_when_print_would_auto_switch(
     assert "height: 62mm;" in captured["html"]
 
 
-def test_print_continuous_stock_does_not_rotate_transposed_profile(
+def test_print_continuous_stock_prefers_full_roll_width_for_transposed_profile(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -805,9 +825,9 @@ def test_print_continuous_stock_does_not_rotate_transposed_profile(
     )
 
     assert response.status_code == 200
-    assert "size: 62mm 62mm;" in captured["html"]
+    assert "size: 40mm 61mm;" in captured["html"]
     assert "width: 40mm;" in captured["html"]
-    assert "height: 62mm;" in captured["html"]
+    assert "height: 61mm;" in captured["html"]
     assert "label--rotated" not in captured["html"]
 
 
@@ -1130,9 +1150,9 @@ def test_print_auto_switches_continuous_stock_to_fit_loaded_roll(
     )
 
     assert response.status_code == 200
-    assert "size: 61mm 350mm;" in captured["html"]
-    assert "width: 61mm;" in captured["html"]
-    assert "height: 350mm;" in captured["html"]
+    assert "size: 350mm 61mm;" in captured["html"]
+    assert "width: 350mm;" in captured["html"]
+    assert "height: 61mm;" in captured["html"]
     assert commands[1] == [
         "sudo",
         "/usr/sbin/lpadmin",
@@ -1163,6 +1183,62 @@ def test_print_auto_switches_continuous_stock_to_fit_loaded_roll(
         "-o",
         "BrPriority=BrQuality",
     ]
+
+
+def test_print_prefers_exact_roll_width_when_both_continuous_orientations_fit(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state.save_state(
+        state.build_default_state(queue_name="QL700").model_copy(
+            update={
+                "stock_width_mm": 61.98,
+                "stock_is_continuous": True,
+                "stock_length_mm": None,
+            }
+        )
+    )
+
+    captured: dict[str, str] = {}
+    commands: list[list[str]] = []
+
+    def fake_html_to_pdf_bytes(html: str) -> bytes:
+        captured["html"] = html
+        return b"%PDF-test"
+
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        commands.append(cmd)
+        if cmd == ["lpoptions", "-p", "QL700", "-l"]:
+            return completed(
+                cmd,
+                stdout=(
+                    "PageSize/Media Size: *62x29 61.98X1 62X1 62x100\n"
+                    "BrCutLabel/Cut Label: *1 2 3\n"
+                    "BrPriority/Quality: BrSpeed *BrQuality\n"
+                ),
+            )
+        if cmd[:4] == ["sudo", "/usr/sbin/lpadmin", "-p", "QL700"]:
+            return completed(cmd, stdout="applied\n")
+        if cmd[:2] == ["lp", "-d"]:
+            return completed(cmd, stdout="request id is QL700-1\n")
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
+
+    response = client.post(
+        "/print",
+        json=default_profile_payload(width_mm=22, height_mm=61.98, quantity=1),
+    )
+
+    assert response.status_code == 200
+    assert "size: 22mm 60.98mm;" in captured["html"]
+    assert "width: 22mm;" in captured["html"]
+    assert "height: 60.98mm;" in captured["html"]
+    assert "PageSize=61.98X1" in commands[1]
+    assert "media=61.98X1" in commands[1]
+    assert "orientation-requested=4" in commands[1]
+    assert "orientation-requested=4" in commands[2]
 
 
 def test_print_sets_landscape_orientation_request_for_landscape_jobs(
@@ -1212,8 +1288,8 @@ def test_print_sets_landscape_orientation_request_for_landscape_jobs(
     )
 
     assert response.status_code == 200
-    assert "orientation-requested=4" in commands[1]
-    assert "orientation-requested=4" in commands[2]
+    assert "orientation-requested=3" in commands[1]
+    assert "orientation-requested=3" in commands[2]
 
 
 def test_print_rejects_unsupported_cut_value(

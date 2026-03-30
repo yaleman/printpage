@@ -47,7 +47,9 @@ def parse_lpstat_jobs(output: str) -> list[str]:
 def parse_lpstat_printer_status(
     output: str,
 ) -> tuple[bool, bool, str, str | None]:
-    status_line = next((line.strip() for line in output.splitlines() if line.strip()), "")
+    status_line = next(
+        (line.strip() for line in output.splitlines() if line.strip()), ""
+    )
     if not status_line:
         return False, False, "unknown", None
 

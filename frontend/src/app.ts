@@ -349,7 +349,7 @@ function updateStockIndicators(
 				? `This ${profile.orientation} design is narrower than the loaded roll and will leave unused width.`
 				: ""
 			: stockFit.fit_mode === "fits_auto_switched"
-				? `This ${profile.orientation} design will print as ${stockFit.applied_orientation} on the loaded roll.`
+				? `Print output will switch to ${stockFit.applied_orientation} on the loaded roll.`
 				: "The selected orientation is too wide for the loaded roll."
 		: stockFit.fits_loaded_stock
 			? ""

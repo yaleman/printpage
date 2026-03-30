@@ -3498,6 +3498,46 @@
   function matchesDimension(left, right) {
     return Math.abs(left - right) <= MATCH_TOLERANCE_MM;
   }
+  function chooseBestContinuousOrientation(profile, stockWidthMm) {
+    const selectedOrientation = profile.orientation;
+    const candidates = [];
+    for (const orientation of [
+      selectedOrientation,
+      alternateOrientation(selectedOrientation)
+    ]) {
+      const dimensions = dimensionsForOrientation(profile, orientation);
+      if (dimensions.width_mm <= stockWidthMm + MATCH_TOLERANCE_MM) {
+        candidates.push({
+          gap_mm: Math.abs(stockWidthMm - dimensions.width_mm),
+          preference: orientation === selectedOrientation ? 0 : 1,
+          orientation,
+          width_mm: dimensions.width_mm
+        });
+      }
+    }
+    if (!candidates.length) {
+      const selectedDimensions = effectiveDimensions(profile);
+      return {
+        applied_orientation: null,
+        applied_width_mm: selectedDimensions.width_mm,
+        auto_switched_orientation: false
+      };
+    }
+    const best = candidates.reduce((currentBest, candidate) => {
+      if (candidate.gap_mm < currentBest.gap_mm) {
+        return candidate;
+      }
+      if (candidate.gap_mm === currentBest.gap_mm && candidate.preference < currentBest.preference) {
+        return candidate;
+      }
+      return currentBest;
+    });
+    return {
+      applied_orientation: best.orientation,
+      applied_width_mm: best.width_mm,
+      auto_switched_orientation: best.orientation !== selectedOrientation
+    };
+  }
   function describeStock(stock) {
     return stock.stock_is_continuous ? `continuous ${stock.stock_width_mm}mm roll` : `${stock.stock_width_mm}x${stock.stock_length_mm ?? 0}mm fixed label`;
   }
@@ -3505,7 +3545,22 @@
     const selectedOrientation = profile.orientation;
     const selectedDimensions = effectiveDimensions(profile);
     if (stock.stock_is_continuous) {
-      if (selectedDimensions.width_mm <= stock.stock_width_mm + MATCH_TOLERANCE_MM) {
+      const continuousChoice = chooseBestContinuousOrientation(
+        profile,
+        stock.stock_width_mm
+      );
+      if (continuousChoice.applied_orientation == null) {
+        return {
+          fit_mode: "cannot_fit",
+          fits_loaded_stock: false,
+          selected_orientation: selectedOrientation,
+          applied_orientation: selectedOrientation,
+          auto_switched_orientation: false,
+          message: `The ${selectedOrientation} layout is ${selectedDimensions.width_mm} mm wide, but the loaded ${describeStock(stock)} is only ${stock.stock_width_mm} mm wide.`,
+          message_level: "warning"
+        };
+      }
+      if (!continuousChoice.auto_switched_orientation) {
         return {
           fit_mode: "fits_selected",
           fits_loaded_stock: true,
@@ -3516,30 +3571,17 @@
           message_level: null
         };
       }
-      const appliedOrientation = alternateOrientation(selectedOrientation);
-      const appliedDimensions = dimensionsForOrientation(
-        profile,
-        appliedOrientation
-      );
-      if (appliedDimensions.width_mm <= stock.stock_width_mm + MATCH_TOLERANCE_MM) {
-        return {
-          fit_mode: "fits_auto_switched",
-          fits_loaded_stock: true,
-          selected_orientation: selectedOrientation,
-          applied_orientation: appliedOrientation,
-          auto_switched_orientation: true,
-          message: `This ${selectedOrientation} design will fit on the loaded ${describeStock(stock)} if printed as ${appliedOrientation}. Print will switch to ${appliedOrientation} automatically.`,
-          message_level: "info"
-        };
-      }
       return {
-        fit_mode: "cannot_fit",
-        fits_loaded_stock: false,
+        fit_mode: "fits_auto_switched",
+        fits_loaded_stock: true,
         selected_orientation: selectedOrientation,
-        applied_orientation: selectedOrientation,
-        auto_switched_orientation: false,
-        message: `The ${selectedOrientation} layout is ${selectedDimensions.width_mm} mm wide, but the loaded ${describeStock(stock)} is only ${stock.stock_width_mm} mm wide.`,
-        message_level: "warning"
+        applied_orientation: continuousChoice.applied_orientation,
+        auto_switched_orientation: true,
+        message: matchesDimension(
+          continuousChoice.applied_width_mm,
+          stock.stock_width_mm
+        ) ? `This ${selectedOrientation} design matches the loaded ${describeStock(stock)} when printed as ${continuousChoice.applied_orientation}. Print output will switch to ${continuousChoice.applied_orientation} automatically.` : `This ${selectedOrientation} design fits the loaded ${describeStock(stock)} better when printed as ${continuousChoice.applied_orientation}. Print output will switch to ${continuousChoice.applied_orientation} automatically.`,
+        message_level: "info"
       };
     }
     const fixedLength = Number(stock.stock_length_mm ?? 0);
@@ -3796,7 +3838,7 @@
     const stockFit = evaluateStockFit(profile, activeStock);
     const effective = effectiveDimensions(profile);
     activeStockSummaryEl.textContent = describeStock2(activeStock);
-    stockMatchSummaryEl.textContent = activeStock.stock_is_continuous ? stockFit.fit_mode === "fits_selected" ? effective.width_mm < activeStock.stock_width_mm - MATCH_TOLERANCE_MM ? `This ${profile.orientation} design is narrower than the loaded roll and will leave unused width.` : "" : stockFit.fit_mode === "fits_auto_switched" ? `This ${profile.orientation} design will print as ${stockFit.applied_orientation} on the loaded roll.` : "The selected orientation is too wide for the loaded roll." : stockFit.fits_loaded_stock ? "" : "Loaded stock may not match this design.";
+    stockMatchSummaryEl.textContent = activeStock.stock_is_continuous ? stockFit.fit_mode === "fits_selected" ? effective.width_mm < activeStock.stock_width_mm - MATCH_TOLERANCE_MM ? `This ${profile.orientation} design is narrower than the loaded roll and will leave unused width.` : "" : stockFit.fit_mode === "fits_auto_switched" ? `Print output will switch to ${stockFit.applied_orientation} on the loaded roll.` : "The selected orientation is too wide for the loaded roll." : stockFit.fits_loaded_stock ? "" : "Loaded stock may not match this design.";
     setStockNotice(stockFit.message, stockFit.message_level);
   }
   function updatePreviewMeta(profile) {

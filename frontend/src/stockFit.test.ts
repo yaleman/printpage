@@ -63,6 +63,39 @@ function testAlternateOrientationCanAutoSwitchContinuousRoll(): void {
 	);
 }
 
+function testExactRollWidthMatchBeatsNarrowSelectedOrientation(): void {
+	const fit = evaluateStockFit(
+		{
+			width_mm: 22,
+			height_mm: 61.98,
+			orientation: "portrait",
+		},
+		{
+			stock_width_mm: 61.98,
+			stock_is_continuous: true,
+			stock_length_mm: null,
+		},
+	);
+
+	assertEqual(
+		fit.fit_mode,
+		"fits_auto_switched",
+		"Expected the exact-width orientation to be preferred over a narrower selected orientation",
+	);
+	assertEqual(
+		fit.applied_orientation,
+		"landscape",
+		"Expected the full-width landscape orientation to be chosen",
+	);
+	assertEqual(
+		Boolean(
+			fit.message?.includes("matches the loaded continuous 61.98mm roll"),
+		),
+		true,
+		"Expected the notice to explain that the full roll width will be used",
+	);
+}
+
 function testContinuousRollCannotFitEitherOrientation(): void {
 	const fit = evaluateStockFit(
 		{
@@ -87,4 +120,5 @@ function testContinuousRollCannotFitEitherOrientation(): void {
 
 testSelectedOrientationFitsContinuousRoll();
 testAlternateOrientationCanAutoSwitchContinuousRoll();
+testExactRollWidthMatchBeatsNarrowSelectedOrientation();
 testContinuousRollCannotFitEitherOrientation();

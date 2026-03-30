@@ -40,10 +40,22 @@ type ProfileDraft = {
 	border: BorderDraft;
 	width_mm: number;
 	height_mm: number;
-	is_continuous: boolean;
 	cut_every: number;
 	quality: string;
 	quantity: number;
+};
+
+type ActiveStock = {
+	stock_width_mm: number;
+	stock_is_continuous: boolean;
+	stock_length_mm: number | null;
+};
+
+type StockCompatibility = {
+	fits_without_rotation: boolean;
+	fits_with_rotation: boolean;
+	should_rotate: boolean;
+	warning_message: string | null;
 };
 
 type EditableProfile = LabelProfile | LabelProfileInput | ProfileDraft;
@@ -67,13 +79,19 @@ const DEFAULT_DRAFT: ProfileDraft = {
 	},
 	width_mm: 62,
 	height_mm: 29,
-	is_continuous: false,
 	cut_every: 1,
 	quality: "BrQuality",
 	quantity: 1,
 };
 
+const DEFAULT_ACTIVE_STOCK: ActiveStock = {
+	stock_width_mm: 62,
+	stock_is_continuous: false,
+	stock_length_mm: 29,
+};
+
 const PREVIEW_DEBOUNCE_MS = 250;
+const MATCH_TOLERANCE_MM = 0.1;
 
 function requireElement<T extends HTMLElement>(id: string): T {
 	const element = document.getElementById(id);
@@ -103,14 +121,14 @@ const addRowButton = requireElement<HTMLButtonElement>("add-row-button");
 const deleteRowButton = requireElement<HTMLButtonElement>("delete-row-button");
 const rowText = requireElement<HTMLTextAreaElement>("row-text");
 const rowMeta = requireElement<HTMLElement>("row-meta");
-const continuousToggle = requireElement<HTMLButtonElement>(
-	"is-continuous-toggle",
-);
-const continuousInput = requireElement<HTMLInputElement>("is_continuous");
 const borderToggle = requireElement<HTMLButtonElement>("border-enabled-toggle");
 const borderInput = requireElement<HTMLInputElement>("border_enabled");
 const borderFields = requireElement<HTMLElement>("border-fields");
-const heightLabelText = requireElement<HTMLElement>("height-label-text");
+const activeStockSummaryEl = requireElement<HTMLElement>(
+	"active-stock-summary",
+);
+const stockMatchSummaryEl = requireElement<HTMLElement>("stock-match-summary");
+const stockWarningEl = requireElement<HTMLElement>("stock-warning");
 const rowBoldButton = requireElement<HTMLButtonElement>("row-bold-button");
 const rowItalicButton = requireElement<HTMLButtonElement>("row-italic-button");
 const tabButtons = Array.from(
@@ -125,6 +143,7 @@ let currentProfileId: string | null = null;
 let currentTab = "profile";
 let draftRows = structuredClone(DEFAULT_DRAFT.rows);
 let activeRowIndex = 0;
+let activeStock = { ...DEFAULT_ACTIVE_STOCK };
 let previewTimer: number | null = null;
 let previewRequestToken = 0;
 let previewController: AbortController | null = null;
@@ -168,23 +187,95 @@ function setToggleState(button: HTMLButtonElement, isActive: boolean): void {
 	button.setAttribute("aria-pressed", String(isActive));
 }
 
-function updateContinuousLabel(): void {
-	heightLabelText.textContent = continuousInput.checked
-		? "Length (mm)"
-		: "Height (mm)";
-	setToggleState(continuousToggle, continuousInput.checked);
-}
-
 function updateBorderToggle(): void {
 	setToggleState(borderToggle, borderInput.checked);
 	borderFields.classList.toggle("opacity-50", !borderInput.checked);
 }
 
+function formatMm(value: number | null | undefined): string {
+	return `${Number(value ?? 0)} mm`;
+}
+
+function describeStock(stock: ActiveStock): string {
+	return stock.stock_is_continuous
+		? `Continuous ${formatMm(stock.stock_width_mm)} roll`
+		: `${formatMm(stock.stock_width_mm)} x ${formatMm(stock.stock_length_mm)} fixed label stock`;
+}
+
+function matchesDimension(left: number, right: number): boolean {
+	return Math.abs(left - right) <= MATCH_TOLERANCE_MM;
+}
+
+function evaluateStockCompatibility(
+	profile: Pick<ProfileDraft, "width_mm" | "height_mm">,
+	stock: ActiveStock,
+): StockCompatibility {
+	const fixedLength = Number(stock.stock_length_mm ?? 0);
+	const fitsWithoutRotation = stock.stock_is_continuous
+		? matchesDimension(profile.width_mm, stock.stock_width_mm)
+		: matchesDimension(profile.width_mm, stock.stock_width_mm) &&
+			matchesDimension(profile.height_mm, fixedLength);
+	const fitsWithRotation = stock.stock_is_continuous
+		? matchesDimension(profile.height_mm, stock.stock_width_mm)
+		: matchesDimension(profile.width_mm, fixedLength) &&
+			matchesDimension(profile.height_mm, stock.stock_width_mm);
+	const shouldRotate = !fitsWithoutRotation && fitsWithRotation;
+	const stockDescription = describeStock(stock);
+
+	let warningMessage: string | null = null;
+	if (shouldRotate) {
+		warningMessage = `This job will auto-rotate to fit the loaded ${stockDescription}.`;
+	} else if (!fitsWithoutRotation && !fitsWithRotation) {
+		warningMessage = `The profile dimensions do not match the loaded ${stockDescription} and may misprint.`;
+	}
+
+	return {
+		fits_without_rotation: fitsWithoutRotation,
+		fits_with_rotation: fitsWithRotation,
+		should_rotate: shouldRotate,
+		warning_message: warningMessage,
+	};
+}
+
+function resolvedPreviewSize(
+	profile: Pick<ProfileDraft, "width_mm" | "height_mm">,
+	stock: ActiveStock,
+): { width_mm: number; height_mm: number; compatibility: StockCompatibility } {
+	const compatibility = evaluateStockCompatibility(profile, stock);
+	return {
+		width_mm: stock.stock_width_mm,
+		height_mm: stock.stock_is_continuous
+			? compatibility.should_rotate
+				? profile.width_mm
+				: profile.height_mm
+			: Number(stock.stock_length_mm ?? profile.height_mm),
+		compatibility,
+	};
+}
+
+function updateStockIndicators(
+	profile: Pick<ProfileDraft, "width_mm" | "height_mm">,
+): void {
+	const compatibility = evaluateStockCompatibility(profile, activeStock);
+	activeStockSummaryEl.textContent = describeStock(activeStock);
+	stockMatchSummaryEl.textContent = compatibility.should_rotate
+		? "Preview and print will auto-rotate to match the loaded stock."
+		: compatibility.fits_without_rotation && !compatibility.warning_message
+			? "Profile matches the loaded stock."
+			: "Loaded stock may not match this profile.";
+	stockWarningEl.textContent = compatibility.warning_message ?? "";
+	stockWarningEl.classList.toggle(
+		"hidden",
+		compatibility.warning_message == null,
+	);
+}
+
 function updatePreviewMeta(
 	profile: Pick<ProfileDraft, "width_mm" | "height_mm" | "quantity">,
 ): void {
-	const width = Number(profile.width_mm || 0);
-	const height = Number(profile.height_mm || 0);
+	const resolved = resolvedPreviewSize(profile, activeStock);
+	const width = Number(resolved.width_mm || 0);
+	const height = Number(resolved.height_mm || 0);
 	const quantity = Number(profile.quantity || 0);
 	previewMeta.textContent = `${width || 0} x ${height || 0} mm / Qty ${quantity || 0}`;
 }
@@ -216,7 +307,6 @@ function normalizeProfile(profile: EditableProfile): ProfileDraft {
 		border: normalizeBorder(profile.border),
 		width_mm: profile.width_mm,
 		height_mm: profile.height_mm,
-		is_continuous: Boolean(profile.is_continuous),
 		cut_every: profile.cut_every ?? DEFAULT_DRAFT.cut_every,
 		quality: profile.quality ?? DEFAULT_DRAFT.quality,
 		quantity: profile.quantity ?? DEFAULT_DRAFT.quantity,
@@ -384,12 +474,12 @@ function getPayload(): LabelProfileInput {
 		},
 		width_mm: Number(requireElement<HTMLInputElement>("width_mm").value),
 		height_mm: Number(requireElement<HTMLInputElement>("height_mm").value),
-		is_continuous: continuousInput.checked,
 		cut_every: Number(requireElement<HTMLInputElement>("cut_every").value),
 		quality: requireElement<HTMLSelectElement>("quality").value,
 		quantity: Number(requireElement<HTMLInputElement>("quantity").value),
 	};
 
+	updateStockIndicators(payload as ProfileDraft);
 	updatePreviewMeta(payload as ProfileDraft);
 	return payload;
 }
@@ -424,14 +514,13 @@ function fillForm(profile: EditableProfile): void {
 		border.radius_mm,
 	);
 
-	continuousInput.checked = normalizedProfile.is_continuous;
 	borderInput.checked = border.enabled;
-	updateContinuousLabel();
 	updateBorderToggle();
 
 	draftRows = normalizedProfile.rows;
 	activeRowIndex = 0;
 	renderRowsUI();
+	updateStockIndicators(normalizedProfile);
 	updatePreviewMeta(normalizedProfile);
 	setBaselinePayload(normalizedProfile);
 	deleteButton.disabled = !currentProfileId;
@@ -460,6 +549,11 @@ function selectedProfileFromState(state: AppState): LabelProfile | undefined {
 }
 
 function renderState(state: AppState): void {
+	activeStock = {
+		stock_width_mm: state.stock_width_mm ?? DEFAULT_ACTIVE_STOCK.stock_width_mm,
+		stock_is_continuous: Boolean(state.stock_is_continuous),
+		stock_length_mm: state.stock_length_mm ?? null,
+	};
 	renderProfilePicker(state);
 
 	const selectedProfile = selectedProfileFromState(state);
@@ -485,6 +579,7 @@ function cancelPreviewTimer(): void {
 }
 
 function schedulePreview(): void {
+	getPayload();
 	updateSaveButtonState();
 	cancelPreviewTimer();
 	previewHintEl.textContent = "Auto-preview queued";
@@ -690,12 +785,6 @@ profilePicker.addEventListener("change", () => {
 	if (profilePicker.value) {
 		void selectProfile(profilePicker.value);
 	}
-});
-
-continuousToggle.addEventListener("click", () => {
-	continuousInput.checked = !continuousInput.checked;
-	updateContinuousLabel();
-	schedulePreview();
 });
 
 borderToggle.addEventListener("click", () => {

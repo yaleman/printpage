@@ -26,6 +26,29 @@
               }
             ],
             "title": "Selected Profile Id"
+          },
+          "stock_is_continuous": {
+            "default": false,
+            "title": "Stock Is Continuous",
+            "type": "boolean"
+          },
+          "stock_length_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 29.0,
+            "title": "Stock Length Mm"
+          },
+          "stock_width_mm": {
+            "default": 62.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Stock Width Mm",
+            "type": "number"
           }
         },
         "required": [
@@ -97,11 +120,6 @@
             "title": "Id",
             "type": "string"
           },
-          "is_continuous": {
-            "default": false,
-            "title": "Is Continuous",
-            "type": "boolean"
-          },
           "name": {
             "maxLength": 100,
             "minLength": 1,
@@ -158,11 +176,6 @@
             "exclusiveMinimum": 0.0,
             "title": "Height Mm",
             "type": "number"
-          },
-          "is_continuous": {
-            "default": false,
-            "title": "Is Continuous",
-            "type": "boolean"
           },
           "name": {
             "maxLength": 100,
@@ -271,6 +284,29 @@
             "minLength": 1,
             "title": "Queue Name",
             "type": "string"
+          },
+          "stock_is_continuous": {
+            "default": false,
+            "title": "Stock Is Continuous",
+            "type": "boolean"
+          },
+          "stock_length_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 29.0,
+            "title": "Stock Length Mm"
+          },
+          "stock_width_mm": {
+            "default": 62.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Stock Width Mm",
+            "type": "number"
           }
         },
         "required": [
@@ -304,6 +340,29 @@
             },
             "title": "Queues",
             "type": "array"
+          },
+          "stock_is_continuous": {
+            "default": false,
+            "title": "Stock Is Continuous",
+            "type": "boolean"
+          },
+          "stock_length_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 29.0,
+            "title": "Stock Length Mm"
+          },
+          "stock_width_mm": {
+            "default": 62.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Stock Width Mm",
+            "type": "number"
           }
         },
         "required": [

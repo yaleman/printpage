@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import printpage
-from printpage import printer, state
+from printpage import models, printer, state, stock
 
 
 @pytest.fixture
@@ -51,7 +51,6 @@ def default_profile_payload(**overrides: object) -> dict[str, object]:
         },
         "width_mm": 62,
         "height_mm": 29,
-        "is_continuous": False,
         "cut_every": 1,
         "quality": "BrQuality",
         "quantity": 2,
@@ -88,6 +87,42 @@ BrPriority/Quality: *BrSpeed BrQuality
     assert parsed["BrPriority"]["choices"] == ["BrSpeed", "BrQuality"]
 
 
+def test_resolve_stock_compatibility_for_continuous_and_fixed_stock() -> None:
+    continuous_rotated = stock.resolve_stock_compatibility(
+        models.LabelProfileInput.model_validate(default_profile_payload(width_mm=350, height_mm=62)),
+        stock_width_mm=62,
+        stock_is_continuous=True,
+        stock_length_mm=None,
+    )
+    fixed_exact = stock.resolve_stock_compatibility(
+        models.LabelProfileInput.model_validate(default_profile_payload()),
+        stock_width_mm=62,
+        stock_is_continuous=False,
+        stock_length_mm=29,
+    )
+    fixed_mismatch = stock.resolve_stock_compatibility(
+        models.LabelProfileInput.model_validate(
+            default_profile_payload(width_mm=70, height_mm=40)
+        ),
+        stock_width_mm=62,
+        stock_is_continuous=False,
+        stock_length_mm=29,
+    )
+
+    assert continuous_rotated.fits_without_rotation is False
+    assert continuous_rotated.fits_with_rotation is True
+    assert continuous_rotated.should_rotate is True
+    assert "auto-rotate" in (continuous_rotated.warning_message or "")
+
+    assert fixed_exact.fits_without_rotation is True
+    assert fixed_exact.should_rotate is False
+    assert fixed_exact.warning_message is None
+
+    assert fixed_mismatch.fits_without_rotation is False
+    assert fixed_mismatch.fits_with_rotation is False
+    assert "may misprint" in (fixed_mismatch.warning_message or "")
+
+
 def test_get_api_state_seeds_default_profile_without_printer_lookup(
     client: TestClient,
 ) -> None:
@@ -96,6 +131,9 @@ def test_get_api_state_seeds_default_profile_without_printer_lookup(
     assert response.status_code == 200
     payload = response.json()
     assert payload["queue_name"] == "Brother_QL700"
+    assert payload["stock_width_mm"] == 62.0
+    assert payload["stock_is_continuous"] is False
+    assert payload["stock_length_mm"] == 29.0
     assert payload["selected_profile_id"]
     assert len(payload["profiles"]) == 1
     assert payload["profiles"][0]["name"] == "Default label"
@@ -128,6 +166,11 @@ def test_frontend_editor_source_tracks_dirty_state_and_delete_confirmation() -> 
     template = Path("printpage/templates/index.html").read_text(encoding="utf-8")
 
     assert 'alignment: "center"' in source
+    assert "evaluateStockCompatibility" in source
+    assert "active-stock-summary" in template
+    assert "stock-warning" in template
+    assert "is-continuous-toggle" not in template
+    assert 'requireElement<HTMLInputElement>("is_continuous")' not in source
     assert "baselinePayloadSnapshot" in source
     assert "nav-button--save-ready" in source
     assert "window.confirm(" in source
@@ -136,6 +179,16 @@ def test_frontend_editor_source_tracks_dirty_state_and_delete_confirmation() -> 
     text_area_index = template.index('id="row-text"')
     assert style_controls_index < template.index('id="row-bold-button"') < text_area_index
     assert style_controls_index < template.index('data-row-alignment="justify"') < text_area_index
+
+
+def test_config_source_tracks_stock_controls() -> None:
+    source = Path("frontend/src/config.ts").read_text(encoding="utf-8")
+    template = Path("printpage/templates/config.html").read_text(encoding="utf-8")
+
+    assert "stockWidthInput" in source
+    assert "updateLengthVisibility" in source
+    assert "stock-summary" in template
+    assert 'id="stock_length_mm"' in template
 
 
 def test_openapi_schema_hides_html_pages_and_types_api_responses(
@@ -236,7 +289,7 @@ def test_delete_last_profile_seeds_new_default(
     assert payload["selected_profile_id"] == payload["profiles"][0]["id"]
 
 
-def test_get_and_post_config_manage_queue_only(
+def test_get_and_post_config_manage_queue_and_stock(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -257,20 +310,46 @@ def test_get_and_post_config_manage_queue_only(
     initial_response = client.get("/api/config")
     assert initial_response.status_code == 200
     assert initial_response.json()["queue_name"] == "QL700"
+    assert initial_response.json()["stock_width_mm"] == 62.0
+    assert initial_response.json()["stock_is_continuous"] is False
+    assert initial_response.json()["stock_length_mm"] == 29.0
 
-    save_response = client.post("/api/config", json={"queue_name": "SECOND"})
+    save_response = client.post(
+        "/api/config",
+        json={
+            "queue_name": "SECOND",
+            "stock_width_mm": 62,
+            "stock_is_continuous": True,
+            "stock_length_mm": None,
+        },
+    )
     assert save_response.status_code == 200
     assert save_response.json()["queue_name"] == "SECOND"
+    assert save_response.json()["stock_width_mm"] == 62.0
+    assert save_response.json()["stock_is_continuous"] is True
+    assert save_response.json()["stock_length_mm"] is None
 
     saved_state = json.loads(state.CONFIG_PATH.read_text(encoding="utf-8"))
     assert saved_state["queue_name"] == "SECOND"
+    assert saved_state["stock_width_mm"] == 62.0
+    assert saved_state["stock_is_continuous"] is True
+    assert saved_state["stock_length_mm"] is None
     assert "profiles" in saved_state
 
 
-def test_labels_pdf_uses_payload_dimensions(
+def test_labels_pdf_uses_loaded_stock_dimensions(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    state.save_state(
+        state.build_default_state(queue_name="QL700").model_copy(
+            update={
+                "stock_width_mm": 50,
+                "stock_is_continuous": False,
+                "stock_length_mm": 30,
+            }
+        )
+    )
     captured: dict[str, str] = {}
 
     def fake_html_to_pdf_bytes(html: str) -> bytes:
@@ -290,6 +369,40 @@ def test_labels_pdf_uses_payload_dimensions(
     assert "width: 50mm;" in captured["html"]
     assert 'row--h2 row--center row--bold' in captured["html"]
     assert "hello" in captured["html"]
+
+
+def test_labels_pdf_rotates_to_match_loaded_stock(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state.save_state(
+        state.build_default_state(queue_name="QL700").model_copy(
+            update={
+                "stock_width_mm": 62,
+                "stock_is_continuous": False,
+                "stock_length_mm": 29,
+            }
+        )
+    )
+    captured: dict[str, str] = {}
+
+    def fake_html_to_pdf_bytes(html: str) -> bytes:
+        captured["html"] = html
+        return b"%PDF-test"
+
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
+
+    response = client.post(
+        "/labels.pdf",
+        json=default_profile_payload(width_mm=29, height_mm=62, quantity=1),
+    )
+
+    assert response.status_code == 200
+    assert "size: 62mm 29mm;" in captured["html"]
+    assert "width: 29mm;" in captured["html"]
+    assert "height: 62mm;" in captured["html"]
+    assert "label--rotated" in captured["html"]
+    assert "transform: translateX(62mm) rotate(90deg);" in captured["html"]
 
 
 def test_labels_pdf_renders_optional_border(
@@ -439,6 +552,65 @@ def test_print_supports_quality_option_named_quality(
     assert response.status_code == 200
 
 
+def test_print_uses_loaded_continuous_stock_for_rotated_jobs(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state.save_state(
+        state.build_default_state(queue_name="QL700").model_copy(
+            update={
+                "stock_width_mm": 62,
+                "stock_is_continuous": True,
+                "stock_length_mm": None,
+            }
+        )
+    )
+
+    commands: list[list[str]] = []
+
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        commands.append(cmd)
+        if cmd == ["lpoptions", "-p", "QL700", "-l"]:
+            return completed(
+                cmd,
+                stdout=(
+                    "BrCutLabel/Cut Label: *1 2 3\n"
+                    "BrPriority/Quality: BrSpeed *BrQuality\n"
+                ),
+            )
+        if cmd[:4] == ["sudo", "/usr/sbin/lpadmin", "-p", "QL700"]:
+            return completed(cmd, stdout="applied\n")
+        if cmd[:2] == ["lp", "-d"]:
+            return completed(cmd, stdout="request id is QL700-1\n")
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", lambda html: b"%PDF-test")
+
+    response = client.post(
+        "/print",
+        json=default_profile_payload(width_mm=350, height_mm=62, quantity=1),
+    )
+
+    assert response.status_code == 200
+    assert commands[1] == [
+        "sudo",
+        "/usr/sbin/lpadmin",
+        "-p",
+        "QL700",
+        "-o",
+        "PageSize=62x350",
+        "-o",
+        "media=62x350",
+        "-o",
+        "BrCutLabel=1",
+        "-o",
+        "BrCutAtEnd=ON",
+        "-o",
+        "BrPriority=BrQuality",
+    ]
+
+
 def test_print_rejects_unsupported_cut_value(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -489,16 +661,16 @@ def test_print_rejects_unsupported_quality_value(
     assert "BrPriority=BrQuality" in response.json()["detail"]
 
 
-def test_continuous_and_fixed_size_profiles_validate(
+def test_profile_dimensions_validate(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(printpage, "html_to_pdf_bytes", lambda html: b"%PDF-test")
 
     fixed_response = client.post("/labels.pdf", json=default_profile_payload(quantity=1))
-    continuous_response = client.post(
+    long_response = client.post(
         "/labels.pdf",
-        json=default_profile_payload(is_continuous=True, height_mm=100, quantity=1),
+        json=default_profile_payload(height_mm=100, quantity=1),
     )
     invalid_response = client.post(
         "/labels.pdf",
@@ -506,7 +678,7 @@ def test_continuous_and_fixed_size_profiles_validate(
     )
 
     assert fixed_response.status_code == 200
-    assert continuous_response.status_code == 200
+    assert long_response.status_code == 200
     assert invalid_response.status_code == 422
 
 
@@ -574,6 +746,60 @@ def test_invalid_saved_state_falls_back_to_default_profile(
     payload = response.json()
     assert payload["profiles"][0]["name"] == "Default label"
     assert payload["profiles"][0]["rows"][0]["text"] == "New label"
+
+
+def test_legacy_saved_state_is_backfilled_with_default_stock(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state.CONFIG_PATH.write_text(
+        json.dumps(
+            {
+                "queue_name": "QL700",
+                "selected_profile_id": "legacy",
+                "profiles": [
+                    {
+                        "id": "legacy",
+                        "name": "Legacy",
+                        "rows": [{"text": "old", "level": "normal", "alignment": "left"}],
+                        "border": {
+                            "enabled": False,
+                            "thickness_mm": 0.5,
+                            "inset_mm": 1.0,
+                            "radius_mm": 1.5,
+                        },
+                        "width_mm": 62,
+                        "height_mm": 29,
+                        "is_continuous": False,
+                        "cut_every": 1,
+                        "quality": "BrQuality",
+                        "quantity": 1,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd == ["lpstat", "-p", "-d"]:
+            return completed(cmd, stdout=fake_lpstat_output())
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    response = client.get("/api/state")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["stock_width_mm"] == 62.0
+    assert payload["stock_is_continuous"] is False
+    assert payload["stock_length_mm"] == 29.0
+
+    saved_state = json.loads(state.CONFIG_PATH.read_text(encoding="utf-8"))
+    assert saved_state["stock_width_mm"] == 62.0
+    assert saved_state["stock_is_continuous"] is False
+    assert saved_state["stock_length_mm"] == 29.0
 
 
 def test_profile_save_does_not_require_printer_listing(

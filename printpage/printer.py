@@ -4,6 +4,7 @@ import subprocess
 from fastapi import HTTPException
 
 from .models import LabelProfileInput
+from .stock import ResolvedPrintLayout
 
 DEFAULT_QUEUE_NAME = "Brother_QL700"
 
@@ -93,8 +94,8 @@ def mm_to_css(value: float) -> str:
     return f"{value:g}"
 
 
-def media_size_value(profile: LabelProfileInput) -> str:
-    return f"{mm_to_css(profile.width_mm)}x{mm_to_css(profile.height_mm)}"
+def media_size_value(width_mm: float, height_mm: float) -> str:
+    return f"{mm_to_css(width_mm)}x{mm_to_css(height_mm)}"
 
 
 def validate_profile_options(
@@ -132,10 +133,14 @@ def validate_profile_options(
     return cut_value, quality_key
 
 
-def apply_profile_to_printer(queue_name: str, profile: LabelProfileInput) -> None:
+def apply_profile_to_printer(
+    queue_name: str,
+    profile: LabelProfileInput,
+    layout: ResolvedPrintLayout,
+) -> None:
     choices = get_queue_choices(queue_name)
     cut_value, quality_key = validate_profile_options(queue_name, profile, choices)
-    size_value = media_size_value(profile)
+    size_value = media_size_value(layout.page_width_mm, layout.page_height_mm)
 
     cmd = [
         "sudo",

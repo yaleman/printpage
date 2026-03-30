@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from .models import AppState, LabelProfileInput, PrintJobResult, QueueConfig, QueueState
 from .printer import get_available_queues
 from .rendering import html_to_pdf_bytes, render_label_html, templates
+from .stock import resolve_print_layout
 from .state import (
     create_profile,
     delete_profile,
@@ -84,6 +85,9 @@ def get_config() -> QueueState:
     state = resolve_state(default_queue)
     return QueueState(
         queue_name=state.queue_name,
+        stock_width_mm=state.stock_width_mm,
+        stock_is_continuous=state.stock_is_continuous,
+        stock_length_mm=state.stock_length_mm,
         queues=queues,
         default_queue=default_queue,
     )
@@ -95,6 +99,9 @@ def save_config(queue_config: QueueConfig) -> QueueState:
     queues, default_queue = get_available_queues()
     return QueueState(
         queue_name=state.queue_name,
+        stock_width_mm=state.stock_width_mm,
+        stock_is_continuous=state.stock_is_continuous,
+        stock_length_mm=state.stock_length_mm,
         queues=queues,
         default_queue=default_queue,
     )
@@ -106,7 +113,14 @@ def save_config(queue_config: QueueConfig) -> QueueState:
     responses={200: {"content": {"application/pdf": {}}}},
 )
 def generate_label_pdf(profile: LabelProfileInput) -> Response:
-    html = render_label_html(profile)
+    state = resolve_state()
+    layout = resolve_print_layout(
+        profile,
+        stock_width_mm=state.stock_width_mm,
+        stock_is_continuous=state.stock_is_continuous,
+        stock_length_mm=state.stock_length_mm,
+    )
+    html = render_label_html(profile, layout)
     pdf_bytes = html_to_pdf_bytes(html)
     return Response(
         content=pdf_bytes,
@@ -118,8 +132,14 @@ def generate_label_pdf(profile: LabelProfileInput) -> Response:
 @app.post("/print", response_model=PrintJobResult)
 def print_label(profile: LabelProfileInput) -> PrintJobResult:
     state = resolve_state()
-    apply_profile_to_printer(state.queue_name, profile)
-    html = render_label_html(profile)
+    layout = resolve_print_layout(
+        profile,
+        stock_width_mm=state.stock_width_mm,
+        stock_is_continuous=state.stock_is_continuous,
+        stock_length_mm=state.stock_length_mm,
+    )
+    apply_profile_to_printer(state.queue_name, profile, layout)
+    html = render_label_html(profile, layout)
     pdf_bytes = html_to_pdf_bytes(html)
 
     with NamedTemporaryFile(suffix=".pdf", delete=True) as tmp:

@@ -25,8 +25,50 @@
               <select id="queue_name" name="queue_name" class="app-input pr-8"></select>
             </label>
 
+            <div class="rounded-xl border border-stone-200 bg-stone-50 p-3">
+              <div class="mb-3">
+                <h2 class="text-sm font-semibold text-stone-900">Loaded stock</h2>
+                <p class="text-xs text-stone-500">Use the stock that is physically loaded in the printer.</p>
+              </div>
+
+              <div class="grid gap-3">
+                <label class="block">
+                  <span class="app-label">Width (mm)</span>
+                  <input
+                    id="stock_width_mm"
+                    name="stock_width_mm"
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    required
+                    class="app-input">
+                </label>
+
+                <label class="flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700">
+                  <input id="stock_is_continuous" name="stock_is_continuous" type="checkbox" class="h-4 w-4">
+                  <span>Continuous roll stock</span>
+                </label>
+
+                <label id="stock-length-group" class="block">
+                  <span class="app-label">Label length (mm)</span>
+                  <input
+                    id="stock_length_mm"
+                    name="stock_length_mm"
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    required
+                    class="app-input">
+                </label>
+
+                <p id="stock-summary" class="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-600">
+                  Loading stock...
+                </p>
+              </div>
+            </div>
+
             <div class="grid gap-2">
-              <button type="submit" class="nav-button nav-button--primary w-full">Save queue</button>
+              <button type="submit" class="nav-button nav-button--primary w-full">Save printer settings</button>
               <button type="button" id="refresh-button" class="nav-button nav-button--secondary w-full">
                 Refresh queues
               </button>

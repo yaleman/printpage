@@ -4,6 +4,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from .models import AppState, LabelProfile, LabelProfileInput, QueueConfig, default_profile
+from .models import DEFAULT_STOCK_LENGTH_MM, DEFAULT_STOCK_WIDTH_MM
 from .printer import DEFAULT_QUEUE_NAME
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -13,6 +14,9 @@ CONFIG_PATH = REPO_ROOT / "printpage.json"
 def build_default_state(queue_name: str | None = None) -> AppState:
     return AppState(
         queue_name=queue_name or DEFAULT_QUEUE_NAME,
+        stock_width_mm=DEFAULT_STOCK_WIDTH_MM,
+        stock_is_continuous=False,
+        stock_length_mm=DEFAULT_STOCK_LENGTH_MM,
         selected_profile_id=None,
         profiles=[default_profile()],
     )
@@ -24,7 +28,10 @@ def load_state() -> AppState | None:
 
     try:
         data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-        return AppState.model_validate(data)
+        state = AppState.model_validate(data)
+        if state.model_dump() != data:
+            save_state(state)
+        return state
     except (json.JSONDecodeError, ValidationError):
         return None
 
@@ -51,6 +58,9 @@ def save_state(state: AppState) -> AppState:
 def update_queue(queue_config: QueueConfig) -> AppState:
     state = resolve_state()
     state.queue_name = queue_config.queue_name
+    state.stock_width_mm = queue_config.stock_width_mm
+    state.stock_is_continuous = queue_config.stock_is_continuous
+    state.stock_length_mm = queue_config.stock_length_mm
     return save_state(state)
 
 

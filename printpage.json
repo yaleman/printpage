@@ -10,7 +10,6 @@
       "cut_every": 1,
       "height_mm": 29.0,
       "id": "9f5731946adf417f9ac98f5ea15e48f7",
-      "is_continuous": false,
       "name": "Default label",
       "quality": "BrQuality",
       "quantity": 1,
@@ -27,5 +26,8 @@
     }
   ],
   "queue_name": "Brother_QL700",
-  "selected_profile_id": "9f5731946adf417f9ac98f5ea15e48f7"
+  "selected_profile_id": "9f5731946adf417f9ac98f5ea15e48f7",
+  "stock_is_continuous": false,
+  "stock_length_mm": 29.0,
+  "stock_width_mm": 62.0
 }

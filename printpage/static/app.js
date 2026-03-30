@@ -3494,12 +3494,17 @@
     },
     width_mm: 62,
     height_mm: 29,
-    is_continuous: false,
     cut_every: 1,
     quality: "BrQuality",
     quantity: 1
   };
+  var DEFAULT_ACTIVE_STOCK = {
+    stock_width_mm: 62,
+    stock_is_continuous: false,
+    stock_length_mm: 29
+  };
   var PREVIEW_DEBOUNCE_MS = 250;
+  var MATCH_TOLERANCE_MM = 0.1;
   function requireElement(id) {
     const element = document.getElementById(id);
     if (!element) {
@@ -3525,14 +3530,14 @@
   var deleteRowButton = requireElement("delete-row-button");
   var rowText = requireElement("row-text");
   var rowMeta = requireElement("row-meta");
-  var continuousToggle = requireElement(
-    "is-continuous-toggle"
-  );
-  var continuousInput = requireElement("is_continuous");
   var borderToggle = requireElement("border-enabled-toggle");
   var borderInput = requireElement("border_enabled");
   var borderFields = requireElement("border-fields");
-  var heightLabelText = requireElement("height-label-text");
+  var activeStockSummaryEl = requireElement(
+    "active-stock-summary"
+  );
+  var stockMatchSummaryEl = requireElement("stock-match-summary");
+  var stockWarningEl = requireElement("stock-warning");
   var rowBoldButton = requireElement("row-bold-button");
   var rowItalicButton = requireElement("row-italic-button");
   var tabButtons = Array.from(
@@ -3546,6 +3551,7 @@
   var currentTab = "profile";
   var draftRows = structuredClone(DEFAULT_DRAFT.rows);
   var activeRowIndex = 0;
+  var activeStock = { ...DEFAULT_ACTIVE_STOCK };
   var previewTimer = null;
   var previewRequestToken = 0;
   var previewController = null;
@@ -3578,17 +3584,60 @@
     button.dataset.state = isActive ? "on" : "off";
     button.setAttribute("aria-pressed", String(isActive));
   }
-  function updateContinuousLabel() {
-    heightLabelText.textContent = continuousInput.checked ? "Length (mm)" : "Height (mm)";
-    setToggleState(continuousToggle, continuousInput.checked);
-  }
   function updateBorderToggle() {
     setToggleState(borderToggle, borderInput.checked);
     borderFields.classList.toggle("opacity-50", !borderInput.checked);
   }
+  function formatMm(value) {
+    return `${Number(value ?? 0)} mm`;
+  }
+  function describeStock(stock) {
+    return stock.stock_is_continuous ? `Continuous ${formatMm(stock.stock_width_mm)} roll` : `${formatMm(stock.stock_width_mm)} x ${formatMm(stock.stock_length_mm)} fixed label stock`;
+  }
+  function matchesDimension(left, right) {
+    return Math.abs(left - right) <= MATCH_TOLERANCE_MM;
+  }
+  function evaluateStockCompatibility(profile, stock) {
+    const fixedLength = Number(stock.stock_length_mm ?? 0);
+    const fitsWithoutRotation = stock.stock_is_continuous ? matchesDimension(profile.width_mm, stock.stock_width_mm) : matchesDimension(profile.width_mm, stock.stock_width_mm) && matchesDimension(profile.height_mm, fixedLength);
+    const fitsWithRotation = stock.stock_is_continuous ? matchesDimension(profile.height_mm, stock.stock_width_mm) : matchesDimension(profile.width_mm, fixedLength) && matchesDimension(profile.height_mm, stock.stock_width_mm);
+    const shouldRotate = !fitsWithoutRotation && fitsWithRotation;
+    const stockDescription = describeStock(stock);
+    let warningMessage = null;
+    if (shouldRotate) {
+      warningMessage = `This job will auto-rotate to fit the loaded ${stockDescription}.`;
+    } else if (!fitsWithoutRotation && !fitsWithRotation) {
+      warningMessage = `The profile dimensions do not match the loaded ${stockDescription} and may misprint.`;
+    }
+    return {
+      fits_without_rotation: fitsWithoutRotation,
+      fits_with_rotation: fitsWithRotation,
+      should_rotate: shouldRotate,
+      warning_message: warningMessage
+    };
+  }
+  function resolvedPreviewSize(profile, stock) {
+    const compatibility = evaluateStockCompatibility(profile, stock);
+    return {
+      width_mm: stock.stock_width_mm,
+      height_mm: stock.stock_is_continuous ? compatibility.should_rotate ? profile.width_mm : profile.height_mm : Number(stock.stock_length_mm ?? profile.height_mm),
+      compatibility
+    };
+  }
+  function updateStockIndicators(profile) {
+    const compatibility = evaluateStockCompatibility(profile, activeStock);
+    activeStockSummaryEl.textContent = describeStock(activeStock);
+    stockMatchSummaryEl.textContent = compatibility.should_rotate ? "Preview and print will auto-rotate to match the loaded stock." : compatibility.fits_without_rotation && !compatibility.warning_message ? "Profile matches the loaded stock." : "Loaded stock may not match this profile.";
+    stockWarningEl.textContent = compatibility.warning_message ?? "";
+    stockWarningEl.classList.toggle(
+      "hidden",
+      compatibility.warning_message == null
+    );
+  }
   function updatePreviewMeta(profile) {
-    const width = Number(profile.width_mm || 0);
-    const height = Number(profile.height_mm || 0);
+    const resolved = resolvedPreviewSize(profile, activeStock);
+    const width = Number(resolved.width_mm || 0);
+    const height = Number(resolved.height_mm || 0);
     const quantity = Number(profile.quantity || 0);
     previewMeta.textContent = `${width || 0} x ${height || 0} mm / Qty ${quantity || 0}`;
   }
@@ -3617,7 +3666,6 @@
       border: normalizeBorder(profile.border),
       width_mm: profile.width_mm,
       height_mm: profile.height_mm,
-      is_continuous: Boolean(profile.is_continuous),
       cut_every: profile.cut_every ?? DEFAULT_DRAFT.cut_every,
       quality: profile.quality ?? DEFAULT_DRAFT.quality,
       quantity: profile.quantity ?? DEFAULT_DRAFT.quantity
@@ -3750,11 +3798,11 @@
       },
       width_mm: Number(requireElement("width_mm").value),
       height_mm: Number(requireElement("height_mm").value),
-      is_continuous: continuousInput.checked,
       cut_every: Number(requireElement("cut_every").value),
       quality: requireElement("quality").value,
       quantity: Number(requireElement("quantity").value)
     };
+    updateStockIndicators(payload);
     updatePreviewMeta(payload);
     return payload;
   }
@@ -3784,13 +3832,12 @@
     requireElement("border_radius_mm").value = String(
       border.radius_mm
     );
-    continuousInput.checked = normalizedProfile.is_continuous;
     borderInput.checked = border.enabled;
-    updateContinuousLabel();
     updateBorderToggle();
     draftRows = normalizedProfile.rows;
     activeRowIndex = 0;
     renderRowsUI();
+    updateStockIndicators(normalizedProfile);
     updatePreviewMeta(normalizedProfile);
     setBaselinePayload(normalizedProfile);
     deleteButton.disabled = !currentProfileId;
@@ -3812,6 +3859,11 @@
     return profiles.find((profile) => profile.id === state.selected_profile_id) ?? profiles[0];
   }
   function renderState(state) {
+    activeStock = {
+      stock_width_mm: state.stock_width_mm ?? DEFAULT_ACTIVE_STOCK.stock_width_mm,
+      stock_is_continuous: Boolean(state.stock_is_continuous),
+      stock_length_mm: state.stock_length_mm ?? null
+    };
     renderProfilePicker(state);
     const selectedProfile = selectedProfileFromState(state);
     currentProfileId = selectedProfile?.id ?? null;
@@ -3832,6 +3884,7 @@
     }
   }
   function schedulePreview() {
+    getPayload();
     updateSaveButtonState();
     cancelPreviewTimer();
     previewHintEl.textContent = "Auto-preview queued";
@@ -3998,11 +4051,6 @@
     if (profilePicker.value) {
       void selectProfile(profilePicker.value);
     }
-  });
-  continuousToggle.addEventListener("click", () => {
-    continuousInput.checked = !continuousInput.checked;
-    updateContinuousLabel();
-    schedulePreview();
   });
   borderToggle.addEventListener("click", () => {
     borderInput.checked = !borderInput.checked;

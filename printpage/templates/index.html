@@ -80,17 +80,8 @@
                     <div class="mb-3 flex items-center justify-between">
                       <div>
                         <h2 class="text-sm font-semibold text-stone-900">Stock</h2>
-                        <p class="text-xs text-stone-500">Dimensions and media behavior</p>
+                        <p class="text-xs text-stone-500">Authored label dimensions</p>
                       </div>
-                      <button
-                        type="button"
-                        id="is-continuous-toggle"
-                        data-state="off"
-                        aria-pressed="false"
-                        class="rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition data-[state=off]:border-stone-300 data-[state=off]:bg-white data-[state=off]:text-stone-600 data-[state=on]:border-stone-900 data-[state=on]:bg-stone-900 data-[state=on]:text-white">
-                        Continuous stock
-                      </button>
-                      <input id="is_continuous" name="is_continuous" type="checkbox" class="hidden">
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
@@ -107,7 +98,7 @@
                           class="app-input">
                       </label>
                       <label>
-                        <span id="height-label-text" class="app-label">Height (mm)</span>
+                        <span class="app-label">Height (mm)</span>
                         <input
                           id="height_mm"
                           name="height_mm"
@@ -118,6 +109,18 @@
                           data-autopreview
                           class="app-input">
                       </label>
+                    </div>
+
+                    <div class="mt-3 space-y-2">
+                      <div class="rounded-lg border border-stone-200 bg-white px-3 py-2">
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Loaded stock</p>
+                        <p id="active-stock-summary" class="mt-1 text-sm text-stone-700">Loading printer stock...</p>
+                        <p id="stock-match-summary" class="mt-1 text-xs text-stone-500">Checking profile fit…</p>
+                      </div>
+                      <div
+                        id="stock-warning"
+                        class="hidden rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                      </div>
                     </div>
                   </section>
 

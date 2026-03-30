@@ -20,6 +20,18 @@ export type AppState = {
      * Selected Profile Id
      */
     selected_profile_id?: string | null;
+    /**
+     * Stock Is Continuous
+     */
+    stock_is_continuous?: boolean;
+    /**
+     * Stock Length Mm
+     */
+    stock_length_mm?: number | null;
+    /**
+     * Stock Width Mm
+     */
+    stock_width_mm?: number;
 };
 
 /**
@@ -72,10 +84,6 @@ export type LabelProfile = {
      */
     id: string;
     /**
-     * Is Continuous
-     */
-    is_continuous?: boolean;
-    /**
      * Name
      */
     name: string;
@@ -110,10 +118,6 @@ export type LabelProfileInput = {
      * Height Mm
      */
     height_mm: number;
-    /**
-     * Is Continuous
-     */
-    is_continuous?: boolean;
     /**
      * Name
      */
@@ -192,6 +196,18 @@ export type QueueConfig = {
      * Queue Name
      */
     queue_name: string;
+    /**
+     * Stock Is Continuous
+     */
+    stock_is_continuous?: boolean;
+    /**
+     * Stock Length Mm
+     */
+    stock_length_mm?: number | null;
+    /**
+     * Stock Width Mm
+     */
+    stock_width_mm?: number;
 };
 
 /**
@@ -210,6 +226,18 @@ export type QueueState = {
      * Queues
      */
     queues?: Array<string>;
+    /**
+     * Stock Is Continuous
+     */
+    stock_is_continuous?: boolean;
+    /**
+     * Stock Length Mm
+     */
+    stock_length_mm?: number | null;
+    /**
+     * Stock Width Mm
+     */
+    stock_width_mm?: number;
 };
 
 /**

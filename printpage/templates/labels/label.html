@@ -14,11 +14,24 @@
       font-family: "DejaVu Sans", "Liberation Sans", "Noto Sans", Arial, sans-serif;
     }
 
-    .label {
-      width: {{ label_width_mm }}mm;
-      height: {{ label_height_mm }}mm;
+    .page {
+      width: {{ page_width_mm }}mm;
+      height: {{ page_height_mm }}mm;
       position: relative;
       overflow: hidden;
+    }
+
+    .label {
+      width: {{ content_width_mm }}mm;
+      height: {{ content_height_mm }}mm;
+      position: relative;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    .label--rotated {
+      transform: translateX({{ rotation_offset_mm }}mm) rotate(90deg);
+      transform-origin: top left;
     }
 
     .border {
@@ -110,14 +123,16 @@
   </style>
     </head>
     <body>
-        <div class="label">
-            {% if border.enabled %}
-            <div class="border"></div>
-            {% endif %}
-            <div class="rows">
-                {% for row in rows %}
-                <div class="row row--{{ row.level }} row--{{ row.alignment }}{% if row.bold %} row--bold{% endif %}{% if row.italic %} row--italic{% endif %}">{{ row.text }}</div>
-                {% endfor %}
+        <div class="page">
+            <div class="label{% if should_rotate %} label--rotated{% endif %}">
+                {% if border.enabled %}
+                <div class="border"></div>
+                {% endif %}
+                <div class="rows">
+                    {% for row in rows %}
+                    <div class="row row--{{ row.level }} row--{{ row.alignment }}{% if row.bold %} row--bold{% endif %}{% if row.italic %} row--italic{% endif %}">{{ row.text }}</div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </body>

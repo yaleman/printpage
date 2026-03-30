@@ -3,6 +3,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from .models import LabelProfileInput
+from .stock import ResolvedPrintLayout
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = PACKAGE_DIR / "templates"
@@ -18,21 +19,25 @@ def mm_to_css(value: float) -> str:
     return f"{value:g}"
 
 
-def label_dimensions_mm(width_mm: float, height_mm: float) -> dict[str, str]:
-    label_width = max(width_mm - (LABEL_MARGIN_MM * 2), 1.0)
-    label_height = max(height_mm - (LABEL_MARGIN_MM * 2), 1.0)
+def label_dimensions_mm(layout: ResolvedPrintLayout) -> dict[str, str | bool]:
+    page_width = max(layout.page_width_mm - (LABEL_MARGIN_MM * 2), 1.0)
+    page_height = max(layout.page_height_mm - (LABEL_MARGIN_MM * 2), 1.0)
+    content_width = max(layout.content_width_mm, 1.0)
+    content_height = max(layout.content_height_mm, 1.0)
     return {
-        "page_width_mm": mm_to_css(width_mm),
-        "page_height_mm": mm_to_css(height_mm),
-        "label_width_mm": mm_to_css(label_width),
-        "label_height_mm": mm_to_css(label_height),
+        "page_width_mm": mm_to_css(page_width),
+        "page_height_mm": mm_to_css(page_height),
+        "content_width_mm": mm_to_css(content_width),
+        "content_height_mm": mm_to_css(content_height),
         "margin_mm": mm_to_css(LABEL_MARGIN_MM),
+        "rotation_offset_mm": mm_to_css(layout.page_width_mm),
+        "should_rotate": layout.should_rotate,
     }
 
 
-def render_label_html(profile: LabelProfileInput) -> str:
+def render_label_html(profile: LabelProfileInput, layout: ResolvedPrintLayout) -> str:
     template = templates.get_template("labels/label.html")
-    page_dimensions = label_dimensions_mm(profile.width_mm, profile.height_mm)
+    page_dimensions = label_dimensions_mm(layout)
     border = profile.border
     border_inset = border.inset_mm if border.enabled else 0.0
     border_thickness = border.thickness_mm if border.enabled else 0.0

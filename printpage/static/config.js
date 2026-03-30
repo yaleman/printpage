@@ -3442,14 +3442,40 @@
     }
     return element;
   }
+  function formatMm(value) {
+    return `${Number(value ?? 0)} mm`;
+  }
+  function describeStock(data) {
+    return data.stock_is_continuous ? `Continuous ${formatMm(data.stock_width_mm)} roll is loaded.` : `${formatMm(data.stock_width_mm)} x ${formatMm(data.stock_length_mm)} fixed labels are loaded.`;
+  }
   var configForm = requireElement("config-form");
   var queueSelect = requireElement("queue_name");
+  var stockWidthInput = requireElement("stock_width_mm");
+  var stockContinuousInput = requireElement(
+    "stock_is_continuous"
+  );
+  var stockLengthGroup = requireElement("stock-length-group");
+  var stockLengthInput = requireElement("stock_length_mm");
+  var stockSummaryEl = requireElement("stock-summary");
   var refreshButton = requireElement("refresh-button");
   var statusEl = requireElement("status");
   var configStateEl = requireElement("config-state");
   function setStatus(message, isError = false) {
     statusEl.textContent = message;
     statusEl.dataset.state = isError ? "error" : "idle";
+  }
+  function updateLengthVisibility() {
+    const isContinuous = stockContinuousInput.checked;
+    stockLengthGroup.classList.toggle("hidden", isContinuous);
+    stockLengthInput.disabled = isContinuous;
+    stockLengthInput.required = !isContinuous;
+  }
+  function updateStockSummary() {
+    stockSummaryEl.textContent = describeStock({
+      stock_width_mm: Number(stockWidthInput.value || 0),
+      stock_is_continuous: stockContinuousInput.checked,
+      stock_length_mm: stockContinuousInput.checked ? null : Number(stockLengthInput.value || 0)
+    });
   }
   function renderConfig(data) {
     queueSelect.innerHTML = "";
@@ -3462,6 +3488,11 @@
       }
       queueSelect.appendChild(option);
     }
+    stockWidthInput.value = String(data.stock_width_mm);
+    stockContinuousInput.checked = Boolean(data.stock_is_continuous);
+    stockLengthInput.value = data.stock_length_mm == null ? "" : String(data.stock_length_mm);
+    updateLengthVisibility();
+    updateStockSummary();
     configStateEl.textContent = JSON.stringify(data, null, 2);
   }
   async function loadConfig() {
@@ -3477,14 +3508,19 @@
   }
   configForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    setStatus("Saving queue...");
+    setStatus("Saving printer settings...");
     try {
       const response = await saveConfigApiConfigPost({
-        body: { queue_name: queueSelect.value },
+        body: {
+          queue_name: queueSelect.value,
+          stock_width_mm: Number(stockWidthInput.value),
+          stock_is_continuous: stockContinuousInput.checked,
+          stock_length_mm: stockContinuousInput.checked ? null : Number(stockLengthInput.value)
+        },
         throwOnError: true
       });
       renderConfig(response.data);
-      setStatus("Queue saved.");
+      setStatus("Printer settings saved.");
     } catch (error) {
       console.error(error);
       setStatus(getErrorMessage(error), true);
@@ -3492,6 +3528,12 @@
   });
   refreshButton.addEventListener("click", () => {
     void loadConfig();
+  });
+  stockWidthInput.addEventListener("input", updateStockSummary);
+  stockLengthInput.addEventListener("input", updateStockSummary);
+  stockContinuousInput.addEventListener("change", () => {
+    updateLengthVisibility();
+    updateStockSummary();
   });
   void loadConfig();
 })();

@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field, model_validator
 DEFAULT_PROFILE_NAME = "Default label"
 DEFAULT_WIDTH_MM = 62.0
 DEFAULT_HEIGHT_MM = 29.0
+DEFAULT_STOCK_WIDTH_MM = 62.0
+DEFAULT_STOCK_LENGTH_MM = 29.0
 DEFAULT_CUT_EVERY = 1
 DEFAULT_QUALITY = "BrQuality"
 DEFAULT_QUANTITY = 1
@@ -49,7 +51,6 @@ class LabelProfileInput(BaseModel):
     border: LabelBorderInput = Field(default_factory=LabelBorderInput)
     width_mm: float = Field(..., gt=0)
     height_mm: float = Field(..., gt=0)
-    is_continuous: bool = False
     cut_every: int = Field(default=DEFAULT_CUT_EVERY, ge=1)
     quality: str = Field(default=DEFAULT_QUALITY)
     quantity: int = Field(default=DEFAULT_QUANTITY, ge=1)
@@ -73,6 +74,9 @@ class LabelProfile(LabelProfileInput):
 
 class AppState(BaseModel):
     queue_name: str = Field(..., min_length=1, max_length=200)
+    stock_width_mm: float = Field(default=DEFAULT_STOCK_WIDTH_MM, gt=0)
+    stock_is_continuous: bool = False
+    stock_length_mm: float | None = DEFAULT_STOCK_LENGTH_MM
     selected_profile_id: str | None = None
     profiles: list[LabelProfile] = Field(default_factory=list)
 
@@ -81,6 +85,12 @@ class AppState(BaseModel):
         self.queue_name = self.queue_name.strip()
         if not self.queue_name:
             raise ValueError("queue_name cannot be empty")
+        if self.stock_is_continuous:
+            self.stock_length_mm = None
+        elif self.stock_length_mm is None:
+            self.stock_length_mm = DEFAULT_STOCK_LENGTH_MM
+        elif self.stock_length_mm <= 0:
+            raise ValueError("stock_length_mm must be greater than zero")
 
         if not self.profiles:
             self.profiles = [default_profile()]
@@ -93,19 +103,44 @@ class AppState(BaseModel):
 
 class QueueConfig(BaseModel):
     queue_name: str = Field(..., min_length=1, max_length=200)
+    stock_width_mm: float = Field(default=DEFAULT_STOCK_WIDTH_MM, gt=0)
+    stock_is_continuous: bool = False
+    stock_length_mm: float | None = DEFAULT_STOCK_LENGTH_MM
 
     @model_validator(mode="after")
     def normalize_queue_name(self) -> "QueueConfig":
         self.queue_name = self.queue_name.strip()
         if not self.queue_name:
             raise ValueError("queue_name cannot be empty")
+        if self.stock_is_continuous:
+            self.stock_length_mm = None
+        elif self.stock_length_mm is None:
+            raise ValueError("stock_length_mm is required for fixed-length stock")
+        elif self.stock_length_mm <= 0:
+            raise ValueError("stock_length_mm must be greater than zero")
         return self
 
 
 class QueueState(BaseModel):
     queue_name: str = Field(..., min_length=1, max_length=200)
+    stock_width_mm: float = Field(default=DEFAULT_STOCK_WIDTH_MM, gt=0)
+    stock_is_continuous: bool = False
+    stock_length_mm: float | None = DEFAULT_STOCK_LENGTH_MM
     queues: list[str] = Field(default_factory=list)
     default_queue: str | None = None
+
+    @model_validator(mode="after")
+    def normalize_stock(self) -> "QueueState":
+        self.queue_name = self.queue_name.strip()
+        if not self.queue_name:
+            raise ValueError("queue_name cannot be empty")
+        if self.stock_is_continuous:
+            self.stock_length_mm = None
+        elif self.stock_length_mm is None:
+            raise ValueError("stock_length_mm is required for fixed-length stock")
+        elif self.stock_length_mm <= 0:
+            raise ValueError("stock_length_mm must be greater than zero")
+        return self
 
 
 class PrintJobResult(BaseModel):
@@ -131,7 +166,6 @@ def default_profile() -> LabelProfile:
         border=LabelBorderInput(),
         width_mm=DEFAULT_WIDTH_MM,
         height_mm=DEFAULT_HEIGHT_MM,
-        is_continuous=False,
         cut_every=DEFAULT_CUT_EVERY,
         quality=DEFAULT_QUALITY,
         quantity=DEFAULT_QUANTITY,

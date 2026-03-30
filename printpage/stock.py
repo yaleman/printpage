@@ -23,6 +23,17 @@ class ResolvedPrintLayout:
     warning_message: str | None
 
 
+def resolve_preview_layout(profile: LabelProfileInput) -> ResolvedPrintLayout:
+    return ResolvedPrintLayout(
+        page_width_mm=profile.width_mm,
+        page_height_mm=profile.height_mm,
+        content_width_mm=profile.width_mm,
+        content_height_mm=profile.height_mm,
+        should_rotate=False,
+        warning_message=None,
+    )
+
+
 def matches_dimension(left: float, right: float) -> bool:
     return abs(left - right) <= MATCH_TOLERANCE_MM
 

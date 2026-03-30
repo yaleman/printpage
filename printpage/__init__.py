@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from .models import AppState, LabelProfileInput, PrintJobResult, QueueConfig, QueueState
 from .printer import get_available_queues
 from .rendering import html_to_pdf_bytes, render_label_html, templates
-from .stock import resolve_print_layout
+from .stock import resolve_preview_layout, resolve_print_layout
 from .state import (
     create_profile,
     delete_profile,
@@ -113,13 +113,7 @@ def save_config(queue_config: QueueConfig) -> QueueState:
     responses={200: {"content": {"application/pdf": {}}}},
 )
 def generate_label_pdf(profile: LabelProfileInput) -> Response:
-    state = resolve_state()
-    layout = resolve_print_layout(
-        profile,
-        stock_width_mm=state.stock_width_mm,
-        stock_is_continuous=state.stock_is_continuous,
-        stock_length_mm=state.stock_length_mm,
-    )
+    layout = resolve_preview_layout(profile)
     html = render_label_html(profile, layout)
     pdf_bytes = html_to_pdf_bytes(html)
     return Response(

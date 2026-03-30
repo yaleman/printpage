@@ -337,7 +337,7 @@ def test_get_and_post_config_manage_queue_and_stock(
     assert "profiles" in saved_state
 
 
-def test_labels_pdf_uses_loaded_stock_dimensions(
+def test_labels_pdf_uses_authored_profile_dimensions_for_preview(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -371,7 +371,7 @@ def test_labels_pdf_uses_loaded_stock_dimensions(
     assert "hello" in captured["html"]
 
 
-def test_labels_pdf_rotates_to_match_loaded_stock(
+def test_labels_pdf_does_not_rotate_in_preview(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -398,11 +398,10 @@ def test_labels_pdf_rotates_to_match_loaded_stock(
     )
 
     assert response.status_code == 200
-    assert "size: 62mm 29mm;" in captured["html"]
+    assert "size: 29mm 62mm;" in captured["html"]
     assert "width: 29mm;" in captured["html"]
     assert "height: 62mm;" in captured["html"]
-    assert "label--rotated" in captured["html"]
-    assert "transform: translateX(62mm) rotate(90deg);" in captured["html"]
+    assert 'class="label label--rotated"' not in captured["html"]
 
 
 def test_labels_pdf_renders_optional_border(

@@ -1,4 +1,5 @@
 import { buildQueueTroubleshootingNotes } from "./queueTroubleshooting";
+import "./stockFit.test";
 
 function assertEqual<T>(actual: T, expected: T, message: string): void {
 	if (actual !== expected) {

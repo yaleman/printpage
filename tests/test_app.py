@@ -132,7 +132,15 @@ def test_parse_lpstat_printer_status() -> None:
 def test_resolve_stock_compatibility_for_continuous_and_fixed_stock() -> None:
     continuous_too_wide = stock.resolve_stock_compatibility(
         models.LabelProfileInput.model_validate(
-            default_profile_payload(width_mm=80, height_mm=20)
+            default_profile_payload(width_mm=80, height_mm=75)
+        ),
+        stock_width_mm=62,
+        stock_is_continuous=True,
+        stock_length_mm=None,
+    )
+    continuous_auto_switched = stock.resolve_stock_compatibility(
+        models.LabelProfileInput.model_validate(
+            default_profile_payload(width_mm=75, height_mm=62)
         ),
         stock_width_mm=62,
         stock_is_continuous=True,
@@ -162,16 +170,26 @@ def test_resolve_stock_compatibility_for_continuous_and_fixed_stock() -> None:
     )
 
     assert continuous_too_wide.fits_loaded_stock is False
-    assert "only 62mm wide" in (continuous_too_wide.warning_message or "")
+    assert continuous_too_wide.fit_mode == "cannot_fit"
+    assert "only 62mm wide" in (continuous_too_wide.message or "")
+
+    assert continuous_auto_switched.fits_loaded_stock is True
+    assert continuous_auto_switched.fit_mode == "fits_auto_switched"
+    assert continuous_auto_switched.applied_orientation == "landscape"
+    assert continuous_auto_switched.auto_switched_orientation is True
+    assert "switch to landscape automatically" in (continuous_auto_switched.message or "")
 
     assert continuous_narrow.fits_loaded_stock is True
-    assert continuous_narrow.warning_message is None
+    assert continuous_narrow.fit_mode == "fits_selected"
+    assert continuous_narrow.message is None
 
     assert fixed_exact.fits_loaded_stock is True
-    assert fixed_exact.warning_message is None
+    assert fixed_exact.fit_mode == "fits_selected"
+    assert fixed_exact.message is None
 
     assert fixed_mismatch.fits_loaded_stock is False
-    assert "may misprint" in (fixed_mismatch.warning_message or "")
+    assert fixed_mismatch.fit_mode == "cannot_fit"
+    assert "may misprint" in (fixed_mismatch.message or "")
 
 
 def test_get_api_state_seeds_default_profile_without_printer_lookup(
@@ -215,14 +233,18 @@ def test_static_assets_are_served(client: TestClient) -> None:
 
 def test_frontend_editor_source_tracks_dirty_state_and_delete_confirmation() -> None:
     source = Path("frontend/src/app.ts").read_text(encoding="utf-8")
+    stock_fit_source = Path("frontend/src/stockFit.ts").read_text(encoding="utf-8")
     template = Path("printpage/templates/index.html").read_text(encoding="utf-8")
 
     assert 'alignment: "center"' in source
     assert 'orientation: "portrait"' in source
-    assert "evaluateStockCompatibility" in source
-    assert "effectiveDimensions" in source
+    assert 'from "./stockFit"' in source
+    assert "evaluateStockFit" in source
+    assert "effectiveDimensions" in stock_fit_source
+    assert "alternateOrientation" in stock_fit_source
     assert "active-stock-summary" in template
     assert "stock-warning" in template
+    assert 'data-state=""' in template
     assert "secondary-dimension-label" in template
     assert "updateDimensionLabels" in source
     assert "setDimensionToPrinterWidth" in source
@@ -716,6 +738,29 @@ def test_labels_pdf_does_not_rotate_in_preview(
     assert "label--rotated" not in captured["html"]
 
 
+def test_labels_pdf_keeps_authored_orientation_when_print_would_auto_switch(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, str] = {}
+
+    def fake_html_to_pdf_bytes(html: str) -> bytes:
+        captured["html"] = html
+        return b"%PDF-test"
+
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
+
+    response = client.post(
+        "/labels.pdf",
+        json=default_profile_payload(width_mm=350, height_mm=62, quantity=1),
+    )
+
+    assert response.status_code == 200
+    assert "size: 350mm 62mm;" in captured["html"]
+    assert "width: 350mm;" in captured["html"]
+    assert "height: 62mm;" in captured["html"]
+
+
 def test_print_continuous_stock_does_not_rotate_transposed_profile(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -1038,7 +1083,7 @@ def test_print_supports_quality_option_named_quality(
     assert response.status_code == 200
 
 
-def test_print_uses_loaded_continuous_stock_for_rotated_jobs(
+def test_print_auto_switches_continuous_stock_to_fit_loaded_roll(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1052,7 +1097,12 @@ def test_print_uses_loaded_continuous_stock_for_rotated_jobs(
         )
     )
 
+    captured: dict[str, str] = {}
     commands: list[list[str]] = []
+
+    def fake_html_to_pdf_bytes(html: str) -> bytes:
+        captured["html"] = html
+        return b"%PDF-test"
 
     def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
         commands.append(cmd)
@@ -1072,7 +1122,7 @@ def test_print_uses_loaded_continuous_stock_for_rotated_jobs(
         raise AssertionError(f"Unexpected command: {cmd}")
 
     monkeypatch.setattr(printer, "run_command", fake_run_command)
-    monkeypatch.setattr(printpage, "html_to_pdf_bytes", lambda html: b"%PDF-test")
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
 
     response = client.post(
         "/print",
@@ -1080,6 +1130,9 @@ def test_print_uses_loaded_continuous_stock_for_rotated_jobs(
     )
 
     assert response.status_code == 200
+    assert "size: 61mm 350mm;" in captured["html"]
+    assert "width: 61mm;" in captured["html"]
+    assert "height: 350mm;" in captured["html"]
     assert commands[1] == [
         "sudo",
         "/usr/sbin/lpadmin",
@@ -1090,7 +1143,7 @@ def test_print_uses_loaded_continuous_stock_for_rotated_jobs(
         "-o",
         "media=62X1",
         "-o",
-        "orientation-requested=3",
+        "orientation-requested=4",
         "-o",
         "BrCutLabel=1",
         "-o",
@@ -1102,7 +1155,7 @@ def test_print_uses_loaded_continuous_stock_for_rotated_jobs(
         "-o",
         "media=62X1",
         "-o",
-        "orientation-requested=3",
+        "orientation-requested=4",
         "-o",
         "BrCutLabel=1",
         "-o",

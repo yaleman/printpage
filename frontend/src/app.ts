@@ -18,6 +18,12 @@ import type {
 	QueueStatus,
 } from "../client/types.gen";
 import { configureApiClient, getErrorMessage, isCanceledError } from "./api";
+import {
+	type ActiveStock,
+	effectiveDimensions,
+	evaluateStockFit,
+	MATCH_TOLERANCE_MM,
+} from "./stockFit";
 
 configureApiClient();
 
@@ -46,17 +52,6 @@ type ProfileDraft = {
 	cut_every: number;
 	quality: string;
 	quantity: number;
-};
-
-type ActiveStock = {
-	stock_width_mm: number;
-	stock_is_continuous: boolean;
-	stock_length_mm: number | null;
-};
-
-type StockCompatibility = {
-	fits_loaded_stock: boolean;
-	warning_message: string | null;
 };
 
 type EditableProfile = LabelProfile | LabelProfileInput | ProfileDraft;
@@ -93,8 +88,17 @@ const DEFAULT_ACTIVE_STOCK: ActiveStock = {
 };
 
 const PREVIEW_DEBOUNCE_MS = 250;
-const MATCH_TOLERANCE_MM = 0.1;
 const QUEUE_STATUS_POLL_MS = 10_000;
+const STOCK_NOTICE_INFO_CLASSES = [
+	"border-emerald-300",
+	"bg-emerald-50",
+	"text-emerald-800",
+];
+const STOCK_NOTICE_WARNING_CLASSES = [
+	"border-amber-300",
+	"bg-amber-50",
+	"text-amber-900",
+];
 
 function requireElement<T extends HTMLElement>(id: string): T {
 	const element = document.getElementById(id);
@@ -297,10 +301,6 @@ function describeStock(stock: ActiveStock): string {
 		: `${formatMm(stock.stock_width_mm)} x ${formatMm(stock.stock_length_mm)} fixed label stock`;
 }
 
-function matchesDimension(left: number, right: number): boolean {
-	return Math.abs(left - right) <= MATCH_TOLERANCE_MM;
-}
-
 function updateDimensionLabels(): void {
 	secondaryDimensionLabel.textContent = activeStock.stock_is_continuous
 		? "Length (mm)"
@@ -312,82 +312,49 @@ function setDimensionToPrinterWidth(targetInput: HTMLInputElement): void {
 	schedulePreview();
 }
 
-function effectiveDimensions(
-	profile: Pick<ProfileDraft, "width_mm" | "height_mm" | "orientation">,
-): { width_mm: number; height_mm: number } {
-	return profile.orientation === "landscape"
-		? {
-				width_mm: profile.height_mm,
-				height_mm: profile.width_mm,
-			}
-		: {
-				width_mm: profile.width_mm,
-				height_mm: profile.height_mm,
-			};
-}
-
-function evaluateStockCompatibility(
-	profile: Pick<ProfileDraft, "width_mm" | "height_mm" | "orientation">,
-	stock: ActiveStock,
-): StockCompatibility {
-	const effective = effectiveDimensions(profile);
-	const fixedLength = Number(stock.stock_length_mm ?? 0);
-	const fitsLoadedStock = stock.stock_is_continuous
-		? effective.width_mm <= stock.stock_width_mm + MATCH_TOLERANCE_MM
-		: matchesDimension(effective.width_mm, stock.stock_width_mm) &&
-			matchesDimension(effective.height_mm, fixedLength);
-	const stockDescription = describeStock(stock);
-
-	let warningMessage: string | null = null;
-	if (stock.stock_is_continuous && !fitsLoadedStock) {
-		warningMessage =
-			`The ${profile.orientation} layout is ${effective.width_mm} mm wide, ` +
-			`but the loaded ${stockDescription} is only ${stock.stock_width_mm} mm wide.`;
-	} else if (!fitsLoadedStock) {
-		warningMessage =
-			`The ${profile.orientation} layout does not match the loaded ` +
-			`${stockDescription} and may misprint.`;
+function setStockNotice(
+	message: string | null,
+	level: "info" | "warning" | null,
+): void {
+	stockWarningEl.classList.remove(
+		...STOCK_NOTICE_INFO_CLASSES,
+		...STOCK_NOTICE_WARNING_CLASSES,
+	);
+	if (!message || !level) {
+		stockWarningEl.textContent = "";
+		stockWarningEl.dataset.state = "";
+		stockWarningEl.classList.add("hidden");
+		return;
 	}
 
-	return {
-		fits_loaded_stock: fitsLoadedStock,
-		warning_message: warningMessage,
-	};
-}
-
-function resolvedPreviewSize(
-	profile: Pick<ProfileDraft, "width_mm" | "height_mm" | "orientation">,
-	stock: ActiveStock,
-): { width_mm: number; height_mm: number; compatibility: StockCompatibility } {
-	const compatibility = evaluateStockCompatibility(profile, stock);
-	const effective = effectiveDimensions(profile);
-	return {
-		width_mm: effective.width_mm,
-		height_mm: effective.height_mm,
-		compatibility,
-	};
+	stockWarningEl.textContent = message;
+	stockWarningEl.dataset.state = level;
+	stockWarningEl.classList.remove("hidden");
+	stockWarningEl.classList.add(
+		...(level === "info"
+			? STOCK_NOTICE_INFO_CLASSES
+			: STOCK_NOTICE_WARNING_CLASSES),
+	);
 }
 
 function updateStockIndicators(
 	profile: Pick<ProfileDraft, "width_mm" | "height_mm" | "orientation">,
 ): void {
-	const compatibility = evaluateStockCompatibility(profile, activeStock);
+	const stockFit = evaluateStockFit(profile, activeStock);
 	const effective = effectiveDimensions(profile);
 	activeStockSummaryEl.textContent = describeStock(activeStock);
 	stockMatchSummaryEl.textContent = activeStock.stock_is_continuous
-		? compatibility.fits_loaded_stock
+		? stockFit.fit_mode === "fits_selected"
 			? effective.width_mm < activeStock.stock_width_mm - MATCH_TOLERANCE_MM
 				? `This ${profile.orientation} design is narrower than the loaded roll and will leave unused width.`
 				: ""
-			: "The selected orientation is too wide for the loaded roll."
-		: compatibility.fits_loaded_stock
+			: stockFit.fit_mode === "fits_auto_switched"
+				? `This ${profile.orientation} design will print as ${stockFit.applied_orientation} on the loaded roll.`
+				: "The selected orientation is too wide for the loaded roll."
+		: stockFit.fits_loaded_stock
 			? ""
 			: "Loaded stock may not match this design.";
-	stockWarningEl.textContent = compatibility.warning_message ?? "";
-	stockWarningEl.classList.toggle(
-		"hidden",
-		compatibility.warning_message == null,
-	);
+	setStockNotice(stockFit.message, stockFit.message_level);
 }
 
 function updatePreviewMeta(
@@ -396,7 +363,7 @@ function updatePreviewMeta(
 		"width_mm" | "height_mm" | "orientation" | "quantity"
 	>,
 ): void {
-	const resolved = resolvedPreviewSize(profile, activeStock);
+	const resolved = effectiveDimensions(profile);
 	const width = Number(resolved.width_mm || 0);
 	const height = Number(resolved.height_mm || 0);
 	const quantity = Number(profile.quantity || 0);

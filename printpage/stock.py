@@ -1,15 +1,23 @@
 from dataclasses import dataclass
+from typing import Literal
 
 from .models import LabelProfileInput
 
 MATCH_TOLERANCE_MM = 0.1
 CONTINUOUS_PRINT_WIDTH_TRIM_MM = 1.0
+FitMode = Literal["fits_selected", "fits_auto_switched", "cannot_fit"]
+MessageLevel = Literal["info", "warning"] | None
 
 
 @dataclass(frozen=True)
 class StockCompatibility:
+    fit_mode: FitMode
     fits_loaded_stock: bool
-    warning_message: str | None
+    selected_orientation: str
+    applied_orientation: str
+    auto_switched_orientation: bool
+    message: str | None
+    message_level: MessageLevel
 
 
 @dataclass(frozen=True)
@@ -20,13 +28,28 @@ class ResolvedPrintLayout:
     content_height_mm: float
     media_width_mm: float
     is_continuous_roll_media: bool
-    warning_message: str | None
+    fit_mode: FitMode
+    selected_orientation: str
+    applied_orientation: str
+    auto_switched_orientation: bool
+    message: str | None
+    message_level: MessageLevel
+
+
+def alternate_orientation(orientation: str) -> str:
+    return "portrait" if orientation == "landscape" else "landscape"
+
+
+def dimensions_for_orientation(
+    profile: LabelProfileInput, orientation: str
+) -> tuple[float, float]:
+    if orientation == "landscape":
+        return profile.height_mm, profile.width_mm
+    return profile.width_mm, profile.height_mm
 
 
 def oriented_dimensions(profile: LabelProfileInput) -> tuple[float, float]:
-    if profile.orientation == "landscape":
-        return profile.height_mm, profile.width_mm
-    return profile.width_mm, profile.height_mm
+    return dimensions_for_orientation(profile, profile.orientation)
 
 
 def resolve_preview_layout(profile: LabelProfileInput) -> ResolvedPrintLayout:
@@ -38,7 +61,12 @@ def resolve_preview_layout(profile: LabelProfileInput) -> ResolvedPrintLayout:
         content_height_mm=content_height_mm,
         media_width_mm=content_width_mm,
         is_continuous_roll_media=False,
-        warning_message=None,
+        fit_mode="fits_selected",
+        selected_orientation=profile.orientation,
+        applied_orientation=profile.orientation,
+        auto_switched_orientation=False,
+        message=None,
+        message_level=None,
     )
 
 
@@ -59,34 +87,78 @@ def resolve_stock_compatibility(
     stock_is_continuous: bool,
     stock_length_mm: float | None,
 ) -> StockCompatibility:
-    content_width_mm, content_height_mm = oriented_dimensions(profile)
-    orientation_label = profile.orientation
-
-    if stock_is_continuous:
-        fits_loaded_stock = content_width_mm <= stock_width_mm + MATCH_TOLERANCE_MM
-    else:
-        fixed_length_mm = stock_length_mm or 0.0
-        fits_loaded_stock = matches_dimension(
-            content_width_mm, stock_width_mm
-        ) and matches_dimension(content_height_mm, fixed_length_mm)
-
+    selected_orientation = profile.orientation
+    selected_width_mm, selected_height_mm = oriented_dimensions(profile)
     stock_description = describe_stock(stock_width_mm, stock_is_continuous, stock_length_mm)
 
-    if stock_is_continuous and not fits_loaded_stock:
-        warning_message = (
-            f"The {orientation_label} layout is {content_width_mm:g}mm wide, but the loaded "
-            f"{stock_description} is only {stock_width_mm:g}mm wide."
+    if stock_is_continuous:
+        if selected_width_mm <= stock_width_mm + MATCH_TOLERANCE_MM:
+            return StockCompatibility(
+                fit_mode="fits_selected",
+                fits_loaded_stock=True,
+                selected_orientation=selected_orientation,
+                applied_orientation=selected_orientation,
+                auto_switched_orientation=False,
+                message=None,
+                message_level=None,
+            )
+
+        applied_orientation = alternate_orientation(selected_orientation)
+        applied_width_mm, _ = dimensions_for_orientation(profile, applied_orientation)
+        if applied_width_mm <= stock_width_mm + MATCH_TOLERANCE_MM:
+            return StockCompatibility(
+                fit_mode="fits_auto_switched",
+                fits_loaded_stock=True,
+                selected_orientation=selected_orientation,
+                applied_orientation=applied_orientation,
+                auto_switched_orientation=True,
+                message=(
+                    f"This {selected_orientation} design will fit on the loaded "
+                    f"{stock_description} if printed as {applied_orientation}. "
+                    f"Print will switch to {applied_orientation} automatically."
+                ),
+                message_level="info",
+            )
+
+        return StockCompatibility(
+            fit_mode="cannot_fit",
+            fits_loaded_stock=False,
+            selected_orientation=selected_orientation,
+            applied_orientation=selected_orientation,
+            auto_switched_orientation=False,
+            message=(
+                f"The {selected_orientation} layout is {selected_width_mm:g}mm wide, but the loaded "
+                f"{stock_description} is only {stock_width_mm:g}mm wide."
+            ),
+            message_level="warning",
         )
-    elif not fits_loaded_stock:
-        warning_message = (
-            f"The {orientation_label} layout does not match the loaded {stock_description} and may misprint."
+
+    fixed_length_mm = stock_length_mm or 0.0
+    fits_loaded_stock = matches_dimension(
+        selected_width_mm, stock_width_mm
+    ) and matches_dimension(selected_height_mm, fixed_length_mm)
+    if fits_loaded_stock:
+        return StockCompatibility(
+            fit_mode="fits_selected",
+            fits_loaded_stock=True,
+            selected_orientation=selected_orientation,
+            applied_orientation=selected_orientation,
+            auto_switched_orientation=False,
+            message=None,
+            message_level=None,
         )
-    else:
-        warning_message = None
 
     return StockCompatibility(
-        fits_loaded_stock=fits_loaded_stock,
-        warning_message=warning_message,
+        fit_mode="cannot_fit",
+        fits_loaded_stock=False,
+        selected_orientation=selected_orientation,
+        applied_orientation=selected_orientation,
+        auto_switched_orientation=False,
+        message=(
+            f"The {selected_orientation} layout does not match the loaded "
+            f"{stock_description} and may misprint."
+        ),
+        message_level="warning",
     )
 
 
@@ -97,12 +169,14 @@ def resolve_print_layout(
     stock_is_continuous: bool,
     stock_length_mm: float | None,
 ) -> ResolvedPrintLayout:
-    content_width_mm, content_height_mm = oriented_dimensions(profile)
     compatibility = resolve_stock_compatibility(
         profile,
         stock_width_mm=stock_width_mm,
         stock_is_continuous=stock_is_continuous,
         stock_length_mm=stock_length_mm,
+    )
+    content_width_mm, content_height_mm = dimensions_for_orientation(
+        profile, compatibility.applied_orientation
     )
 
     if stock_is_continuous:
@@ -127,5 +201,10 @@ def resolve_print_layout(
         content_height_mm=content_height_mm,
         media_width_mm=stock_width_mm if stock_is_continuous else page_width_mm,
         is_continuous_roll_media=stock_is_continuous,
-        warning_message=compatibility.warning_message,
+        fit_mode=compatibility.fit_mode,
+        selected_orientation=compatibility.selected_orientation,
+        applied_orientation=compatibility.applied_orientation,
+        auto_switched_orientation=compatibility.auto_switched_orientation,
+        message=compatibility.message,
+        message_level=compatibility.message_level,
     )

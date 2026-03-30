@@ -200,8 +200,8 @@ def media_size_value(width_mm: float, height_mm: float) -> str:
     return f"{mm_to_css(width_mm)}x{mm_to_css(height_mm)}"
 
 
-def orientation_request_value(profile: LabelProfileInput) -> str:
-    return "4" if profile.orientation == "landscape" else "3"
+def orientation_request_value(orientation: str) -> str:
+    return "4" if orientation == "landscape" else "3"
 
 
 def continuous_roll_media_value(
@@ -269,7 +269,7 @@ def apply_profile_to_printer(
 ) -> tuple[str, str, str, str]:
     choices = get_queue_choices(queue_name)
     cut_value, quality_key = validate_profile_options(queue_name, profile, choices)
-    orientation_value = orientation_request_value(profile)
+    orientation_value = orientation_request_value(layout.applied_orientation)
     size_value = (
         continuous_roll_media_value(layout.media_width_mm, choices)
         if layout.is_continuous_roll_media

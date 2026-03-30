@@ -3,7 +3,7 @@ import subprocess
 
 from fastapi import HTTPException
 
-from .models import LabelProfileInput
+from .models import LabelProfileInput, QueueStatus
 from .stock import ResolvedPrintLayout
 
 DEFAULT_QUEUE_NAME = "Brother_QL700"
@@ -27,6 +27,41 @@ def parse_lpstat_destinations(output: str) -> tuple[list[str], str | None]:
             default_queue = stripped.split(":", 1)[1].strip() or None
 
     return queues, default_queue
+
+
+def parse_lpstat_jobs(output: str) -> list[str]:
+    job_ids: list[str] = []
+
+    for raw_line in output.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        job_id = line.split(None, 1)[0]
+        if job_id:
+            job_ids.append(job_id)
+
+    return job_ids
+
+
+def parse_lpstat_printer_status(
+    output: str,
+) -> tuple[bool, bool, str, str | None]:
+    status_line = next((line.strip() for line in output.splitlines() if line.strip()), "")
+    if not status_line:
+        return False, False, "unknown", None
+
+    lowered = status_line.lower()
+    if " disabled since " in lowered:
+        return True, False, "disabled", status_line
+    if " now printing " in lowered or " is printing " in lowered:
+        return True, True, "printing", status_line
+    if " is idle." in lowered:
+        return True, True, "idle", status_line
+    if " enabled since " in lowered:
+        return True, True, "enabled", status_line
+
+    return True, False, "unknown", status_line
 
 
 def parse_lpoptions_choices(
@@ -88,6 +123,50 @@ def get_queue_choices(queue_name: str) -> dict[str, dict[str, str | list[str] | 
         )
 
     return parse_lpoptions_choices(proc.stdout)
+
+
+def get_queue_job_ids(queue_name: str) -> list[str]:
+    proc = run_command(["lpstat", "-o", queue_name])
+    if proc.returncode != 0:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to read queue status for {queue_name}: {proc.stderr.strip() or proc.stdout.strip()}",
+        )
+
+    return parse_lpstat_jobs(proc.stdout)
+
+
+def read_queue_status(queue_name: str) -> QueueStatus:
+    printer_proc = run_command(["lpstat", "-l", "-p", queue_name])
+    if printer_proc.returncode != 0:
+        detail = printer_proc.stderr.strip() or printer_proc.stdout.strip() or None
+        return QueueStatus(
+            queue_name=queue_name,
+            is_detected=False,
+            is_online=False,
+            status="missing",
+            detail=detail,
+            job_ids=[],
+        )
+
+    is_detected, is_online, status, detail = parse_lpstat_printer_status(
+        printer_proc.stdout
+    )
+    jobs_proc = run_command(["lpstat", "-o", queue_name])
+    job_ids: list[str] = []
+    if jobs_proc.returncode == 0:
+        job_ids = parse_lpstat_jobs(jobs_proc.stdout)
+    elif detail is None:
+        detail = jobs_proc.stderr.strip() or jobs_proc.stdout.strip() or None
+
+    return QueueStatus(
+        queue_name=queue_name,
+        is_detected=is_detected,
+        is_online=is_online,
+        status=status,
+        detail=detail,
+        job_ids=job_ids,
+    )
 
 
 def mm_to_css(value: float) -> str:

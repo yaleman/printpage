@@ -3416,6 +3416,11 @@
     url: "/api/profiles/{profile_id}/select",
     ...options
   });
+  var getQueueStatusApiQueueStatusGet = (options) => (options?.client ?? client).get({
+    responseType: "json",
+    url: "/api/queue-status",
+    ...options
+  });
   var getStateApiStateGet = (options) => (options?.client ?? client).get({
     responseType: "json",
     url: "/api/state",
@@ -3505,6 +3510,7 @@
   };
   var PREVIEW_DEBOUNCE_MS = 250;
   var MATCH_TOLERANCE_MM = 0.1;
+  var QUEUE_STATUS_POLL_MS = 1e4;
   function requireElement(id) {
     const element = document.getElementById(id);
     if (!element) {
@@ -3525,6 +3531,10 @@
   var previewOverlay = requireElement("preview-overlay");
   var previewOverlayText = requireElement("preview-overlay-text");
   var previewMeta = requireElement("preview-meta");
+  var queueStatusIndicator = requireElement(
+    "queue-status-indicator"
+  );
+  var queueStatusText = requireElement("queue-status-text");
   var rowList = requireElement("row-list");
   var addRowButton = requireElement("add-row-button");
   var deleteRowButton = requireElement("delete-row-button");
@@ -3548,6 +3558,7 @@
   );
   var currentPdfBlobUrl = null;
   var currentProfileId = null;
+  var activeQueueName = "";
   var currentTab = "profile";
   var draftRows = structuredClone(DEFAULT_DRAFT.rows);
   var activeRowIndex = 0;
@@ -3555,7 +3566,62 @@
   var previewTimer = null;
   var previewRequestToken = 0;
   var previewController = null;
+  var queueStatusPollTimer = null;
+  var queueStatusRequestInFlight = false;
   var baselinePayloadSnapshot = JSON.stringify(DEFAULT_DRAFT);
+  function setQueueStatusIndicator(message, state, title = "") {
+    queueStatusIndicator.dataset.state = state;
+    queueStatusIndicator.title = title;
+    queueStatusText.textContent = message;
+  }
+  function renderQueueStatus(status) {
+    const jobIds = status.job_ids ?? [];
+    const queuedJobs = Number(status.queued_jobs ?? jobIds.length);
+    const isOnline = Boolean(status.is_online);
+    const message = !isOnline ? queuedJobs === 0 ? "Offline" : `Offline \u2022 ${queuedJobs} queued` : queuedJobs === 0 ? "Online" : `Online \u2022 ${queuedJobs} queued`;
+    const titleParts = [
+      `${status.queue_name}: ${status.status ?? "unknown"}`,
+      status.detail,
+      jobIds.length ? `Jobs: ${jobIds.join(", ")}` : "No queued jobs."
+    ].filter(Boolean);
+    setQueueStatusIndicator(
+      message,
+      !isOnline ? "offline" : queuedJobs === 0 ? "idle" : "queued",
+      titleParts.join(" ")
+    );
+  }
+  async function refreshQueueStatus({
+    showLoading = false
+  } = {}) {
+    if (queueStatusRequestInFlight) {
+      return;
+    }
+    queueStatusRequestInFlight = true;
+    if (showLoading) {
+      setQueueStatusIndicator("Checking...", "loading");
+    }
+    try {
+      const response = await getQueueStatusApiQueueStatusGet({
+        query: activeQueueName ? { queue_name: activeQueueName } : void 0,
+        throwOnError: true
+      });
+      renderQueueStatus(response.data);
+    } catch (error) {
+      console.error(error);
+      setQueueStatusIndicator("Unavailable", "error", getErrorMessage(error));
+    } finally {
+      queueStatusRequestInFlight = false;
+    }
+  }
+  function startQueueStatusPolling() {
+    if (queueStatusPollTimer !== null) {
+      return;
+    }
+    void refreshQueueStatus({ showLoading: true });
+    queueStatusPollTimer = window.setInterval(() => {
+      void refreshQueueStatus();
+    }, QUEUE_STATUS_POLL_MS);
+  }
   function setStatus(message, isError = false) {
     generalStatusEl.textContent = message;
     generalStatusEl.dataset.state = isError ? "error" : "idle";
@@ -3859,6 +3925,7 @@
     return profiles.find((profile) => profile.id === state.selected_profile_id) ?? profiles[0];
   }
   function renderState(state) {
+    activeQueueName = state.queue_name;
     activeStock = {
       stock_width_mm: state.stock_width_mm ?? DEFAULT_ACTIVE_STOCK.stock_width_mm,
       stock_is_continuous: Boolean(state.stock_is_continuous),
@@ -4003,6 +4070,7 @@
       });
       const result = response.data;
       setStatus(`Print submitted: ${result.stdout || result.queue}`);
+      await refreshQueueStatus();
     } catch (error) {
       console.error(error);
       setStatus(`Print failed: ${getErrorMessage(error)}`, true);
@@ -4099,11 +4167,13 @@
   setStatus("Loading label profiles...");
   setPreviewStatus("Waiting for preview...");
   setPreviewOverlay("Loading profile...");
+  setQueueStatusIndicator("Checking...", "loading");
   async function loadState() {
     try {
       const response = await getStateApiStateGet({ throwOnError: true });
       renderState(response.data);
       setStatus("Profiles loaded.");
+      await refreshQueueStatus({ showLoading: true });
       await previewPdf({ immediate: true });
     } catch (error) {
       console.error(error);
@@ -4111,7 +4181,9 @@
       setStatus(message, true);
       setPreviewStatus("Preview unavailable.", true);
       setPreviewOverlay(message, true, true);
+      setQueueStatusIndicator("Unavailable", "error", message);
     }
   }
+  startQueueStatusPolling();
   void loadState();
 })();

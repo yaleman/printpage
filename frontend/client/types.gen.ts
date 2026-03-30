@@ -241,6 +241,40 @@ export type QueueState = {
 };
 
 /**
+ * QueueStatus
+ */
+export type QueueStatus = {
+    /**
+     * Detail
+     */
+    detail?: string | null;
+    /**
+     * Is Detected
+     */
+    is_detected?: boolean;
+    /**
+     * Is Online
+     */
+    is_online?: boolean;
+    /**
+     * Job Ids
+     */
+    job_ids?: Array<string>;
+    /**
+     * Queue Name
+     */
+    queue_name: string;
+    /**
+     * Queued Jobs
+     */
+    queued_jobs?: number;
+    /**
+     * Status
+     */
+    status?: string;
+};
+
+/**
  * ValidationError
  */
 export type ValidationError = {
@@ -459,6 +493,36 @@ export type SelectProfileEndpointApiProfilesProfileIdSelectPostResponses = {
 };
 
 export type SelectProfileEndpointApiProfilesProfileIdSelectPostResponse = SelectProfileEndpointApiProfilesProfileIdSelectPostResponses[keyof SelectProfileEndpointApiProfilesProfileIdSelectPostResponses];
+
+export type GetQueueStatusApiQueueStatusGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Queue Name
+         */
+        queue_name?: string | null;
+    };
+    url: '/api/queue-status';
+};
+
+export type GetQueueStatusApiQueueStatusGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetQueueStatusApiQueueStatusGetError = GetQueueStatusApiQueueStatusGetErrors[keyof GetQueueStatusApiQueueStatusGetErrors];
+
+export type GetQueueStatusApiQueueStatusGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: QueueStatus;
+};
+
+export type GetQueueStatusApiQueueStatusGetResponse = GetQueueStatusApiQueueStatusGetResponses[keyof GetQueueStatusApiQueueStatusGetResponses];
 
 export type GetStateApiStateGetData = {
     body?: never;

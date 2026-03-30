@@ -1,17 +1,20 @@
 import {
 	getConfigApiConfigGet,
 	getConfigOptionsApiConfigOptionsGet,
+	getQueueStatusApiQueueStatusGet,
 	saveConfigApiConfigPost,
 } from "../client/sdk.gen";
 import type {
 	GetConfigOptionsApiConfigOptionsGetResponse,
 	QueueState,
+	QueueStatus,
 } from "../client/types.gen";
 import { configureApiClient, getErrorMessage } from "./api";
 
 configureApiClient();
 
 const COPY_BUTTON_RESET_DELAY_MS = 1500;
+const QUEUE_STATUS_POLL_MS = 10_000;
 const JSON_TOKEN_PATTERN =
 	/("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(?:\s*:)?|\b-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?\b|\btrue\b|\bfalse\b|\bnull\b)/g;
 
@@ -122,6 +125,10 @@ const refreshButton = requireElement<HTMLButtonElement>("refresh-button");
 const statusEl = requireElement<HTMLElement>("status");
 const configStateEl = requireElement<HTMLElement>("config-state");
 const queueOptionsEl = requireElement<HTMLElement>("queue-options");
+const queueStatusIndicator = requireElement<HTMLElement>(
+	"queue-status-indicator",
+);
+const queueStatusText = requireElement<HTMLElement>("queue-status-text");
 const copyConfigStateButton =
 	requireElement<HTMLButtonElement>("copy-config-state");
 const copyQueueOptionsButton =
@@ -139,6 +146,82 @@ const queueOptionsPanel: JsonPanel = {
 	element: queueOptionsEl,
 	resetTimer: null,
 };
+let queueStatusPollTimer: number | null = null;
+let queueStatusRequestInFlight = false;
+
+function setQueueStatusIndicator(
+	message: string,
+	state: "loading" | "idle" | "queued" | "offline" | "error",
+	title = "",
+): void {
+	queueStatusIndicator.dataset.state = state;
+	queueStatusIndicator.title = title;
+	queueStatusText.textContent = message;
+}
+
+function renderQueueStatus(status: QueueStatus): void {
+	const jobIds = status.job_ids ?? [];
+	const queuedJobs = Number(status.queued_jobs ?? jobIds.length);
+	const isOnline = Boolean(status.is_online);
+	const message = !isOnline
+		? queuedJobs === 0
+			? "Offline"
+			: `Offline • ${queuedJobs} queued`
+		: queuedJobs === 0
+			? "Online"
+			: `Online • ${queuedJobs} queued`;
+	const titleParts = [
+		`${status.queue_name}: ${status.status ?? "unknown"}`,
+		status.detail,
+		jobIds.length ? `Jobs: ${jobIds.join(", ")}` : "No queued jobs.",
+	].filter(Boolean);
+
+	setQueueStatusIndicator(
+		message,
+		!isOnline ? "offline" : queuedJobs === 0 ? "idle" : "queued",
+		titleParts.join(" "),
+	);
+}
+
+async function refreshQueueStatus({
+	showLoading = false,
+}: {
+	showLoading?: boolean;
+} = {}): Promise<void> {
+	if (queueStatusRequestInFlight) {
+		return;
+	}
+
+	const queueName = queueSelect.value;
+	queueStatusRequestInFlight = true;
+	if (showLoading) {
+		setQueueStatusIndicator("Checking...", "loading");
+	}
+
+	try {
+		const response = await getQueueStatusApiQueueStatusGet({
+			query: queueName ? { queue_name: queueName } : undefined,
+			throwOnError: true,
+		});
+		renderQueueStatus(response.data);
+	} catch (error) {
+		console.error(error);
+		setQueueStatusIndicator("Unavailable", "error", getErrorMessage(error));
+	} finally {
+		queueStatusRequestInFlight = false;
+	}
+}
+
+function startQueueStatusPolling(): void {
+	if (queueStatusPollTimer !== null) {
+		return;
+	}
+
+	void refreshQueueStatus({ showLoading: true });
+	queueStatusPollTimer = window.setInterval(() => {
+		void refreshQueueStatus();
+	}, QUEUE_STATUS_POLL_MS);
+}
 
 function setStatus(message: string, isError = false): void {
 	statusEl.textContent = message;
@@ -184,6 +267,7 @@ function renderConfig(data: QueueState): void {
 	updateLengthVisibility();
 	updateStockSummary();
 	renderHighlightedJson(configStatePanel, data);
+	void refreshQueueStatus({ showLoading: true });
 }
 
 function renderQueueOptions(
@@ -237,6 +321,7 @@ configForm.addEventListener("submit", async (event) => {
 		});
 		renderConfig(response.data);
 		setStatus("Printer settings saved.");
+		await refreshQueueStatus();
 	} catch (error) {
 		console.error(error);
 		setStatus(getErrorMessage(error), true);
@@ -279,5 +364,10 @@ stockContinuousInput.addEventListener("change", () => {
 	updateLengthVisibility();
 	updateStockSummary();
 });
+queueSelect.addEventListener("change", () => {
+	void refreshQueueStatus({ showLoading: true });
+});
 
+setQueueStatusIndicator("Checking...", "loading");
+startQueueStatusPolling();
 void loadConfig();

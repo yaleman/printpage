@@ -143,6 +143,27 @@ class QueueState(BaseModel):
         return self
 
 
+class QueueStatus(BaseModel):
+    queue_name: str = Field(..., min_length=1, max_length=200)
+    is_detected: bool = False
+    is_online: bool = False
+    status: str = Field(default="unknown", min_length=1, max_length=100)
+    detail: str | None = None
+    queued_jobs: int = Field(default=0, ge=0)
+    job_ids: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def normalize_queue_status(self) -> "QueueStatus":
+        self.queue_name = self.queue_name.strip()
+        self.status = self.status.strip().lower()
+        if not self.queue_name:
+            raise ValueError("queue_name cannot be empty")
+        if not self.status:
+            raise ValueError("status cannot be empty")
+        self.queued_jobs = len(self.job_ids)
+        return self
+
+
 class PrintJobResult(BaseModel):
     ok: bool
     queue: str

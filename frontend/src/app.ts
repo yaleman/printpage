@@ -2,6 +2,7 @@ import {
 	createProfileEndpointApiProfilesPost,
 	deleteProfileEndpointApiProfilesProfileIdDelete,
 	generateLabelPdfLabelsPdfPost,
+	getQueueStatusApiQueueStatusGet,
 	getStateApiStateGet,
 	printLabelPrintPost,
 	selectProfileEndpointApiProfilesProfileIdSelectPost,
@@ -14,6 +15,7 @@ import type {
 	LabelProfileInput,
 	LabelRowInput,
 	PrintJobResult,
+	QueueStatus,
 } from "../client/types.gen";
 import { configureApiClient, getErrorMessage, isCanceledError } from "./api";
 
@@ -92,6 +94,7 @@ const DEFAULT_ACTIVE_STOCK: ActiveStock = {
 
 const PREVIEW_DEBOUNCE_MS = 250;
 const MATCH_TOLERANCE_MM = 0.1;
+const QUEUE_STATUS_POLL_MS = 10_000;
 
 function requireElement<T extends HTMLElement>(id: string): T {
 	const element = document.getElementById(id);
@@ -116,6 +119,10 @@ const previewFrame = requireElement<HTMLIFrameElement>("preview-frame");
 const previewOverlay = requireElement<HTMLElement>("preview-overlay");
 const previewOverlayText = requireElement<HTMLElement>("preview-overlay-text");
 const previewMeta = requireElement<HTMLElement>("preview-meta");
+const queueStatusIndicator = requireElement<HTMLElement>(
+	"queue-status-indicator",
+);
+const queueStatusText = requireElement<HTMLElement>("queue-status-text");
 const rowList = requireElement<HTMLElement>("row-list");
 const addRowButton = requireElement<HTMLButtonElement>("add-row-button");
 const deleteRowButton = requireElement<HTMLButtonElement>("delete-row-button");
@@ -140,6 +147,7 @@ const tabPanels = Array.from(
 
 let currentPdfBlobUrl: string | null = null;
 let currentProfileId: string | null = null;
+let activeQueueName = "";
 let currentTab = "profile";
 let draftRows = structuredClone(DEFAULT_DRAFT.rows);
 let activeRowIndex = 0;
@@ -147,7 +155,82 @@ let activeStock = { ...DEFAULT_ACTIVE_STOCK };
 let previewTimer: number | null = null;
 let previewRequestToken = 0;
 let previewController: AbortController | null = null;
+let queueStatusPollTimer: number | null = null;
+let queueStatusRequestInFlight = false;
 let baselinePayloadSnapshot = JSON.stringify(DEFAULT_DRAFT);
+
+function setQueueStatusIndicator(
+	message: string,
+	state: "loading" | "idle" | "queued" | "offline" | "error",
+	title = "",
+): void {
+	queueStatusIndicator.dataset.state = state;
+	queueStatusIndicator.title = title;
+	queueStatusText.textContent = message;
+}
+
+function renderQueueStatus(status: QueueStatus): void {
+	const jobIds = status.job_ids ?? [];
+	const queuedJobs = Number(status.queued_jobs ?? jobIds.length);
+	const isOnline = Boolean(status.is_online);
+	const message = !isOnline
+		? queuedJobs === 0
+			? "Offline"
+			: `Offline • ${queuedJobs} queued`
+		: queuedJobs === 0
+			? "Online"
+			: `Online • ${queuedJobs} queued`;
+	const titleParts = [
+		`${status.queue_name}: ${status.status ?? "unknown"}`,
+		status.detail,
+		jobIds.length ? `Jobs: ${jobIds.join(", ")}` : "No queued jobs.",
+	].filter(Boolean);
+
+	setQueueStatusIndicator(
+		message,
+		!isOnline ? "offline" : queuedJobs === 0 ? "idle" : "queued",
+		titleParts.join(" "),
+	);
+}
+
+async function refreshQueueStatus({
+	showLoading = false,
+}: {
+	showLoading?: boolean;
+} = {}): Promise<void> {
+	if (queueStatusRequestInFlight) {
+		return;
+	}
+
+	queueStatusRequestInFlight = true;
+	if (showLoading) {
+		setQueueStatusIndicator("Checking...", "loading");
+	}
+
+	try {
+		const response = await getQueueStatusApiQueueStatusGet({
+			query: activeQueueName ? { queue_name: activeQueueName } : undefined,
+			throwOnError: true,
+		});
+		renderQueueStatus(response.data);
+	} catch (error) {
+		console.error(error);
+		setQueueStatusIndicator("Unavailable", "error", getErrorMessage(error));
+	} finally {
+		queueStatusRequestInFlight = false;
+	}
+}
+
+function startQueueStatusPolling(): void {
+	if (queueStatusPollTimer !== null) {
+		return;
+	}
+
+	void refreshQueueStatus({ showLoading: true });
+	queueStatusPollTimer = window.setInterval(() => {
+		void refreshQueueStatus();
+	}, QUEUE_STATUS_POLL_MS);
+}
 
 function setStatus(message: string, isError = false): void {
 	generalStatusEl.textContent = message;
@@ -549,6 +632,7 @@ function selectedProfileFromState(state: AppState): LabelProfile | undefined {
 }
 
 function renderState(state: AppState): void {
+	activeQueueName = state.queue_name;
 	activeStock = {
 		stock_width_mm: state.stock_width_mm ?? DEFAULT_ACTIVE_STOCK.stock_width_mm,
 		stock_is_continuous: Boolean(state.stock_is_continuous),
@@ -724,6 +808,7 @@ async function printLabel(): Promise<void> {
 		});
 		const result: PrintJobResult = response.data;
 		setStatus(`Print submitted: ${result.stdout || result.queue}`);
+		await refreshQueueStatus();
 	} catch (error) {
 		console.error(error);
 		setStatus(`Print failed: ${getErrorMessage(error)}`, true);
@@ -841,12 +926,14 @@ updateTabState();
 setStatus("Loading label profiles...");
 setPreviewStatus("Waiting for preview...");
 setPreviewOverlay("Loading profile...");
+setQueueStatusIndicator("Checking...", "loading");
 
 async function loadState(): Promise<void> {
 	try {
 		const response = await getStateApiStateGet({ throwOnError: true });
 		renderState(response.data);
 		setStatus("Profiles loaded.");
+		await refreshQueueStatus({ showLoading: true });
 		await previewPdf({ immediate: true });
 	} catch (error) {
 		console.error(error);
@@ -854,7 +941,9 @@ async function loadState(): Promise<void> {
 		setStatus(message, true);
 		setPreviewStatus("Preview unavailable.", true);
 		setPreviewOverlay(message, true, true);
+		setQueueStatusIndicator("Unavailable", "error", message);
 	}
 }
 
+startQueueStatusPolling();
 void loadState();

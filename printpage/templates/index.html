@@ -22,6 +22,14 @@
           </button>
         </div>
         <div class="flex items-center gap-2">
+          <div
+            id="queue-status-indicator"
+            aria-live="polite"
+            data-state="loading"
+            class="queue-indicator">
+            <span class="text-[10px] font-semibold uppercase tracking-[0.16em]">Queue</span>
+            <span id="queue-status-text" class="queue-indicator__count">Checking...</span>
+          </div>
           <button type="button" id="save-button" disabled data-state="clean" class="nav-button nav-button--secondary">
             Save
           </button>

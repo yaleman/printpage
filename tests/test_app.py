@@ -87,6 +87,34 @@ BrPriority/Quality: *BrSpeed BrQuality
     assert parsed["BrPriority"]["choices"] == ["BrSpeed", "BrQuality"]
 
 
+def test_parse_lpstat_jobs() -> None:
+    output = """QL700-17 alice 1024 Tue 30 Mar 2026 09:00:00 AM AEST
+QL700-18 bob 2048 Tue 30 Mar 2026 09:01:00 AM AEST
+"""
+
+    assert printer.parse_lpstat_jobs(output) == ["QL700-17", "QL700-18"]
+
+
+def test_parse_lpstat_printer_status() -> None:
+    idle_output = "printer QL700 is idle.  enabled since Sun Mar 29 20:40:03 2026\n"
+    disabled_output = (
+        "printer QL700 disabled since Sun Mar 29 20:40:03 2026 - reason unknown\n"
+    )
+
+    assert printer.parse_lpstat_printer_status(idle_output) == (
+        True,
+        True,
+        "idle",
+        "printer QL700 is idle.  enabled since Sun Mar 29 20:40:03 2026",
+    )
+    assert printer.parse_lpstat_printer_status(disabled_output) == (
+        True,
+        False,
+        "disabled",
+        "printer QL700 disabled since Sun Mar 29 20:40:03 2026 - reason unknown",
+    )
+
+
 def test_resolve_stock_compatibility_for_continuous_and_fixed_stock() -> None:
     continuous_rotated = stock.resolve_stock_compatibility(
         models.LabelProfileInput.model_validate(default_profile_payload(width_mm=350, height_mm=62)),
@@ -159,6 +187,7 @@ def test_static_assets_are_served(client: TestClient) -> None:
     assert "tailwindcss" in css_response.text
     assert "axios" in js_response.text
     assert "/labels.pdf" in js_response.text
+    assert "/api/queue-status" in js_response.text
 
 
 def test_frontend_editor_source_tracks_dirty_state_and_delete_confirmation() -> None:
@@ -174,6 +203,10 @@ def test_frontend_editor_source_tracks_dirty_state_and_delete_confirmation() -> 
     assert "baselinePayloadSnapshot" in source
     assert "nav-button--save-ready" in source
     assert "window.confirm(" in source
+    assert "getQueueStatusApiQueueStatusGet" in source
+    assert "startQueueStatusPolling" in source
+    assert 'id="queue-status-indicator"' in template
+    assert 'id="queue-status-text"' in template
     assert 'data-row-style-controls' in template
     style_controls_index = template.index('data-row-style-controls')
     text_area_index = template.index('id="row-text"')
@@ -189,10 +222,13 @@ def test_config_source_tracks_stock_controls() -> None:
     assert "updateLengthVisibility" in source
     assert "queryOptionsButton" in source
     assert "getConfigOptionsApiConfigOptionsGet" in source
+    assert "getQueueStatusApiQueueStatusGet" in source
+    assert "startQueueStatusPolling" in source
     assert "stock-summary" in template
     assert 'id="stock_length_mm"' in template
     assert 'id="query-options-button"' in template
     assert 'id="queue-options"' in template
+    assert 'id="queue-status-indicator"' in template
 
 
 def test_docker_sources_seed_fake_cups_queue() -> None:
@@ -229,6 +265,9 @@ def test_openapi_schema_hides_html_pages_and_types_api_responses(
     assert payload["paths"]["/api/config"]["get"]["responses"]["200"]["content"][
         "application/json"
     ]["schema"]["$ref"] == "#/components/schemas/QueueState"
+    assert payload["paths"]["/api/queue-status"]["get"]["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"]["$ref"] == "#/components/schemas/QueueStatus"
     assert payload["paths"]["/print"]["post"]["responses"]["200"]["content"][
         "application/json"
     ]["schema"]["$ref"] == "#/components/schemas/PrintJobResult"
@@ -383,6 +422,107 @@ def test_get_config_options_returns_parsed_lpoptions(
     assert payload["PageSize"]["default"] == "62x29"
     assert payload["PageSize"]["choices"] == ["62x29", "62x100"]
     assert payload["BrPriority"]["choices"] == ["BrSpeed", "BrQuality"]
+
+
+def test_get_queue_status_returns_job_count_for_active_queue(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state.save_state(state.build_default_state(queue_name="QL700"))
+
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd == ["lpstat", "-l", "-p", "QL700"]:
+            return completed(
+                cmd,
+                stdout="printer QL700 is idle.  enabled since Sun Mar 29 20:40:03 2026\n",
+            )
+        if cmd == ["lpstat", "-o", "QL700"]:
+            return completed(
+                cmd,
+                stdout=(
+                    "QL700-17 alice 1024 Tue 30 Mar 2026 09:00:00 AM AEST\n"
+                    "QL700-18 bob 2048 Tue 30 Mar 2026 09:01:00 AM AEST\n"
+                ),
+            )
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    response = client.get("/api/queue-status")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "queue_name": "QL700",
+        "is_detected": True,
+        "is_online": True,
+        "status": "idle",
+        "detail": "printer QL700 is idle.  enabled since Sun Mar 29 20:40:03 2026",
+        "queued_jobs": 2,
+        "job_ids": ["QL700-17", "QL700-18"],
+    }
+
+
+def test_get_queue_status_allows_explicit_queue_name(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state.save_state(state.build_default_state(queue_name="QL700"))
+
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd == ["lpstat", "-l", "-p", "SECOND"]:
+            return completed(
+                cmd,
+                stdout="printer SECOND is idle.  enabled since Sun Mar 29 20:40:03 2026\n",
+            )
+        if cmd == ["lpstat", "-o", "SECOND"]:
+            return completed(cmd, stdout="")
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    response = client.get("/api/queue-status", params={"queue_name": "SECOND"})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "queue_name": "SECOND",
+        "is_detected": True,
+        "is_online": True,
+        "status": "idle",
+        "detail": "printer SECOND is idle.  enabled since Sun Mar 29 20:40:03 2026",
+        "queued_jobs": 0,
+        "job_ids": [],
+    }
+
+
+def test_get_queue_status_marks_missing_queue_offline(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state.save_state(state.build_default_state(queue_name="Brother_QL700"))
+
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd == ["lpstat", "-l", "-p", "Brother_QL700"]:
+            return completed(
+                cmd,
+                stderr='lpstat: Invalid destination name in list "Brother_QL700".',
+                returncode=1,
+            )
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    response = client.get("/api/queue-status")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "queue_name": "Brother_QL700",
+        "is_detected": False,
+        "is_online": False,
+        "status": "missing",
+        "detail": 'lpstat: Invalid destination name in list "Brother_QL700".',
+        "queued_jobs": 0,
+        "job_ids": [],
+    }
 
 
 def test_labels_pdf_uses_authored_profile_dimensions_for_preview(

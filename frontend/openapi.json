@@ -371,6 +371,62 @@
         "title": "QueueState",
         "type": "object"
       },
+      "QueueStatus": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "is_detected": {
+            "default": false,
+            "title": "Is Detected",
+            "type": "boolean"
+          },
+          "is_online": {
+            "default": false,
+            "title": "Is Online",
+            "type": "boolean"
+          },
+          "job_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Job Ids",
+            "type": "array"
+          },
+          "queue_name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Queue Name",
+            "type": "string"
+          },
+          "queued_jobs": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Queued Jobs",
+            "type": "integer"
+          },
+          "status": {
+            "default": "unknown",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "queue_name"
+        ],
+        "title": "QueueStatus",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -700,6 +756,52 @@
           }
         },
         "summary": "Select Profile Endpoint"
+      }
+    },
+    "/api/queue-status": {
+      "get": {
+        "operationId": "get_queue_status_api_queue_status_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "queue_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Queue Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Queue Status"
       }
     },
     "/api/state": {

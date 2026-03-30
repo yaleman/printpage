@@ -54,6 +54,30 @@
     @apply border-emerald-600 bg-emerald-600 text-white hover:border-emerald-500 hover:bg-emerald-500;
   }
 
+  .queue-indicator {
+    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs text-stone-600;
+  }
+
+  .queue-indicator[data-state="idle"] {
+    @apply border-emerald-300 bg-emerald-50 text-emerald-800;
+  }
+
+  .queue-indicator[data-state="queued"] {
+    @apply border-amber-300 bg-amber-50 text-amber-900;
+  }
+
+  .queue-indicator[data-state="offline"] {
+    @apply border-red-300 bg-red-50 text-red-700;
+  }
+
+  .queue-indicator[data-state="error"] {
+    @apply border-red-300 bg-red-50 text-red-700;
+  }
+
+  .queue-indicator__count {
+    @apply font-semibold;
+  }
+
   .panel-card {
     @apply rounded-xl border border-stone-200 bg-white shadow-sm;
   }

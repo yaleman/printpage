@@ -6,8 +6,15 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from .models import AppState, LabelProfileInput, PrintJobResult, QueueConfig, QueueState
-from .printer import get_available_queues, get_queue_choices
+from .models import (
+    AppState,
+    LabelProfileInput,
+    PrintJobResult,
+    QueueConfig,
+    QueueState,
+    QueueStatus,
+)
+from .printer import get_available_queues, get_queue_choices, read_queue_status
 from .rendering import html_to_pdf_bytes, render_label_html, templates
 from .stock import resolve_preview_layout, resolve_print_layout
 from .state import (
@@ -111,6 +118,13 @@ def save_config(queue_config: QueueConfig) -> QueueState:
 def get_config_options(queue_name: str | None = Query(default=None)) -> dict[str, dict[str, str | list[str] | None]]:
     state = resolve_state()
     return get_queue_choices(queue_name or state.queue_name)
+
+
+@app.get("/api/queue-status", response_model=QueueStatus)
+def get_queue_status(queue_name: str | None = Query(default=None)) -> QueueStatus:
+    state = resolve_state()
+    active_queue_name = queue_name or state.queue_name
+    return read_queue_status(active_queue_name)
 
 
 @app.post(

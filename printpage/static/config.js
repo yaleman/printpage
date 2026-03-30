@@ -3731,6 +3731,50 @@
     const items = troubleshootQueue(config, options, defaults2);
     queueTroubleshootingEl.innerHTML = `<ul class="space-y-2">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
   }
+  async function loadQueueDiagnostics({
+    showLoadingStatus = false
+  } = {}) {
+    const queueName = queueSelect.value;
+    if (!queueName) {
+      return;
+    }
+    if (showLoadingStatus) {
+      setStatus(`Querying ${queueName} details...`);
+    }
+    renderPlainText(queueOptionsPanel, "Loading queue options...");
+    renderPlainText(queueDefaultsPanel, "Loading queue defaults...");
+    renderTroubleshooting(currentConfig, null, null);
+    try {
+      const [optionsResponse, defaultsResponse] = await Promise.all([
+        getConfigOptionsApiConfigOptionsGet({
+          query: { queue_name: queueName },
+          throwOnError: true
+        }),
+        getConfigDefaultsApiConfigDefaultsGet({
+          query: { queue_name: queueName },
+          throwOnError: true
+        })
+      ]);
+      renderQueueOptions(optionsResponse.data);
+      renderQueueDefaults(defaultsResponse.data);
+      renderTroubleshooting(
+        currentConfig,
+        optionsResponse.data,
+        defaultsResponse.data
+      );
+      if (showLoadingStatus) {
+        setStatus(`Queue details loaded for ${queueName}.`);
+      }
+    } catch (error) {
+      console.error(error);
+      renderPlainText(queueOptionsPanel, getErrorMessage(error));
+      renderPlainText(queueDefaultsPanel, getErrorMessage(error));
+      renderTroubleshooting(currentConfig, null, null);
+      if (showLoadingStatus) {
+        setStatus(getErrorMessage(error), true);
+      }
+    }
+  }
   async function copyPanelText(panel) {
     try {
       await navigator.clipboard.writeText(panel.copyText);
@@ -3748,6 +3792,7 @@
       const response = await getConfigApiConfigGet({ throwOnError: true });
       renderConfig(response.data);
       setStatus("Queues loaded.");
+      await loadQueueDiagnostics();
     } catch (error) {
       console.error(error);
       renderPlainText(configStatePanel, getErrorMessage(error));
@@ -3769,6 +3814,7 @@
       });
       renderConfig(response.data);
       setStatus("Printer settings saved.");
+      await loadQueueDiagnostics();
       await refreshQueueStatus();
     } catch (error) {
       console.error(error);
@@ -3779,36 +3825,7 @@
     void loadConfig();
   });
   queryOptionsButton.addEventListener("click", async () => {
-    setStatus(`Querying ${queueSelect.value} details...`);
-    renderPlainText(queueOptionsPanel, "Loading queue options...");
-    renderPlainText(queueDefaultsPanel, "Loading queue defaults...");
-    renderTroubleshooting(currentConfig, null, null);
-    try {
-      const [optionsResponse, defaultsResponse] = await Promise.all([
-        getConfigOptionsApiConfigOptionsGet({
-          query: { queue_name: queueSelect.value },
-          throwOnError: true
-        }),
-        getConfigDefaultsApiConfigDefaultsGet({
-          query: { queue_name: queueSelect.value },
-          throwOnError: true
-        })
-      ]);
-      renderQueueOptions(optionsResponse.data);
-      renderQueueDefaults(defaultsResponse.data);
-      renderTroubleshooting(
-        currentConfig,
-        optionsResponse.data,
-        defaultsResponse.data
-      );
-      setStatus(`Queue details loaded for ${queueSelect.value}.`);
-    } catch (error) {
-      console.error(error);
-      renderPlainText(queueOptionsPanel, getErrorMessage(error));
-      renderPlainText(queueDefaultsPanel, getErrorMessage(error));
-      renderTroubleshooting(currentConfig, null, null);
-      setStatus(getErrorMessage(error), true);
-    }
+    await loadQueueDiagnostics({ showLoadingStatus: true });
   });
   copyConfigStateButton.addEventListener("click", () => {
     void copyPanelText(configStatePanel);
@@ -3827,6 +3844,7 @@
   });
   queueSelect.addEventListener("change", () => {
     void refreshQueueStatus({ showLoading: true });
+    void loadQueueDiagnostics();
   });
   setQueueStatusIndicator("Checking...", "loading");
   startQueueStatusPolling();

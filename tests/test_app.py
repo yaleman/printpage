@@ -252,6 +252,7 @@ def test_config_source_tracks_stock_controls() -> None:
     assert "getConfigOptionsApiConfigOptionsGet" in source
     assert "getConfigDefaultsApiConfigDefaultsGet" in source
     assert "renderTroubleshooting" in source
+    assert "loadQueueDiagnostics" in source
     assert "getQueueStatusApiQueueStatusGet" in source
     assert "startQueueStatusPolling" in source
     assert "stock-summary" in template
@@ -261,6 +262,7 @@ def test_config_source_tracks_stock_controls() -> None:
     assert 'id="queue-defaults"' in template
     assert 'id="queue-troubleshooting"' in template
     assert 'id="queue-status-indicator"' in template
+    assert template.index('id="queue-troubleshooting"') < template.index('id="config-form"')
 
 
 def test_docker_sources_seed_fake_cups_queue() -> None:

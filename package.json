@@ -16,6 +16,7 @@
 		"build:css": "pnpm exec tailwindcss -i ./printpage/assets/app.css -o ./printpage/static/app.css --minify",
 		"export:openapi": "uv run python scripts/export_openapi.py",
 		"generate:client": "rm -rf ./frontend/client && pnpm exec openapi-ts -i ./frontend/openapi.json -o ./frontend/client -c @hey-api/client-axios",
+		"test:frontend": "pnpm exec esbuild frontend/src/queueTroubleshooting.test.ts --bundle --platform=node --format=esm --outfile=dist/queueTroubleshooting.test.mjs && node dist/queueTroubleshooting.test.mjs",
 		"typecheck:frontend": "pnpm exec tsc --noEmit",
 		"watch:css": "pnpm exec tailwindcss -i ./printpage/assets/app.css -o ./printpage/static/app.css --watch",
 		"watch:js": "pnpm exec esbuild frontend/src/app.ts frontend/src/config.ts --bundle --format=iife --platform=browser --target=es2020 --outdir=printpage/static --entry-names=[name] --watch"

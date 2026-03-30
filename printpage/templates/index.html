@@ -4,11 +4,7 @@
     <meta charset="utf-8">
     <title>Label Printer</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-    <link rel="icon" href="/static/favicon.png" type="image/png">
-    <link rel="icon" href="/static/favicon-128.png" sizes="128x128" type="image/png">
-    <link rel="icon" href="/static/favicon-192.png" sizes="192x192" type="image/png">
-    <link rel="icon" href="/static/favicon-512.png" sizes="512x512" type="image/png">
+    {% include "favicons.html" %}
     <link rel="stylesheet" href="/static/app.css">
     <script defer src="/static/app.js"></script>
   </head>
@@ -90,7 +86,7 @@
                   </section>
 
                   <section class="rounded-xl border border-stone-200 bg-stone-50 p-3">
-                    <div class="mb-3 flex items-center justify-between">
+                    <div class="mb-3">
                       <div>
                         <h2 class="text-sm font-semibold text-stone-900">Stock</h2>
                         <p class="text-xs text-stone-500">Authored label dimensions</p>
@@ -99,7 +95,12 @@
 
                     <div class="grid grid-cols-2 gap-3">
                       <label>
-                        <span class="app-label">Width (mm)</span>
+                        <span class="mb-2 flex items-center justify-between gap-2">
+                          <span class="app-label">Width (mm)</span>
+                          <button type="button" id="set-width-to-printer-button" class="nav-button nav-button--secondary">
+                            🖨️ Width
+                          </button>
+                        </span>
                         <input
                           id="width_mm"
                           name="width_mm"
@@ -111,7 +112,12 @@
                           class="app-input">
                       </label>
                       <label>
-                        <span id="secondary-dimension-label" class="app-label">Height (mm)</span>
+                        <span class="mb-2 flex items-center justify-between gap-2">
+                          <span id="secondary-dimension-label" class="app-label">Height (mm)</span>
+                          <button type="button" id="set-height-to-printer-button" class="nav-button nav-button--secondary">
+                            🖨️ Width
+                          </button>
+                        </span>
                         <input
                           id="height_mm"
                           name="height_mm"
@@ -150,7 +156,6 @@
                   <section class="rounded-xl border border-stone-200 bg-stone-50 p-3">
                     <div class="mb-3">
                       <h2 class="text-sm font-semibold text-stone-900">Print run</h2>
-                      <p class="text-xs text-stone-500">Queue options stored with this profile</p>
                     </div>
                     <div class="grid grid-cols-3 gap-3">
                       <label>
@@ -193,7 +198,6 @@
                     <div class="mb-3 flex items-center justify-between">
                       <div>
                         <h2 class="text-sm font-semibold text-stone-900">Border</h2>
-                        <p class="text-xs text-stone-500">Outer stroke around label content</p>
                       </div>
                       <button
                         type="button"
@@ -273,26 +277,26 @@
                     <div class="flex min-h-0 flex-1 flex-col gap-3 p-3">
                       <div class="flex flex-col gap-2">
                         <div data-row-level-controls class="flex flex-wrap gap-1 rounded-lg border border-stone-200 bg-white p-1">
-                            <button
-                              type="button"
-                              data-row-level="normal"
-                              data-state="on"
-                              aria-pressed="true"
-                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">
-                              Body
-                            </button>
-                            <button type="button" data-row-level="h1" data-state="off" aria-pressed="false"
-                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H1</button>
-                            <button type="button" data-row-level="h2" data-state="off" aria-pressed="false"
-                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H2</button>
-                            <button type="button" data-row-level="h3" data-state="off" aria-pressed="false"
-                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H3</button>
-                            <button type="button" data-row-level="h4" data-state="off" aria-pressed="false"
-                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H4</button>
-                            <button type="button" data-row-level="h5" data-state="off" aria-pressed="false"
-                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H5</button>
-                            <button type="button" data-row-level="h6" data-state="off" aria-pressed="false"
-                              class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H6</button>
+                          <button
+                            type="button"
+                            data-row-level="normal"
+                            data-state="on"
+                            aria-pressed="true"
+                            class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">
+                            Body
+                          </button>
+                          <button type="button" data-row-level="h1" data-state="off" aria-pressed="false"
+                            class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H1</button>
+                          <button type="button" data-row-level="h2" data-state="off" aria-pressed="false"
+                            class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H2</button>
+                          <button type="button" data-row-level="h3" data-state="off" aria-pressed="false"
+                            class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H3</button>
+                          <button type="button" data-row-level="h4" data-state="off" aria-pressed="false"
+                            class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H4</button>
+                          <button type="button" data-row-level="h5" data-state="off" aria-pressed="false"
+                            class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H5</button>
+                          <button type="button" data-row-level="h6" data-state="off" aria-pressed="false"
+                            class="rounded-md px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-stone-100 data-[state=on]:bg-stone-900 data-[state=on]:text-white">H6</button>
                         </div>
 
                         <div data-row-style-controls class="flex flex-wrap gap-2">

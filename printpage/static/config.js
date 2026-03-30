@@ -3448,6 +3448,72 @@
     return String(error);
   }
 
+  // frontend/src/queueTroubleshooting.ts
+  function buildQueueTroubleshootingNotes(config, defaults2) {
+    if (!config || !defaults2) {
+      return [
+        "Query a queue to inspect likely causes of rotation or scaling problems."
+      ];
+    }
+    const notes = [];
+    const orientationValue = defaults2["orientation-requested"];
+    const mediaValue = defaults2.media ?? defaults2.PageSize;
+    const scalingValue = defaults2.scaling;
+    const fitToPageValue = defaults2["fit-to-page"];
+    const numberUpValue = defaults2["number-up"];
+    const marginValue = defaults2.BrMargin;
+    const expectedContinuousMedia = `${String(config.stock_width_mm).replace(/\.0$/, "")}X1`;
+    if (orientationValue && orientationValue !== "3") {
+      notes.push(
+        `Saved default orientation is ${orientationValue}, not portrait (3). This can rotate jobs before the Brother driver sees them.`
+      );
+    }
+    if (defaults2.landscape === "true") {
+      notes.push(
+        "Saved queue defaults include the bare `landscape` flag. That can force rotation regardless of document size."
+      );
+    }
+    if (fitToPageValue && fitToPageValue !== "false") {
+      notes.push(
+        `Saved default fit-to-page is ${fitToPageValue}. That can rescale labels unexpectedly.`
+      );
+    }
+    if (scalingValue && scalingValue !== "100") {
+      notes.push(
+        `Saved default scaling is ${scalingValue} instead of 100. That can shrink or enlarge labels.`
+      );
+    }
+    if (numberUpValue && numberUpValue !== "1") {
+      notes.push(
+        `Saved default number-up is ${numberUpValue} instead of 1. That can place labels on a reduced layout.`
+      );
+    }
+    if (config.stock_is_continuous && mediaValue && mediaValue.toUpperCase() !== expectedContinuousMedia.toUpperCase()) {
+      notes.push(
+        `Saved default media is ${mediaValue}, but the loaded stock is a ${expectedContinuousMedia} continuous roll. The app overrides media per job, but mismatched queue defaults are still suspicious.`
+      );
+    }
+    if (!config.stock_is_continuous && mediaValue) {
+      const expectedFixedMedia = `${config.stock_width_mm}x${config.stock_length_mm}`;
+      if (mediaValue.toLowerCase() !== expectedFixedMedia.toLowerCase()) {
+        notes.push(
+          `Saved default media is ${mediaValue}, not ${expectedFixedMedia}. The app overrides media per job, but mismatched queue defaults are still suspicious.`
+        );
+      }
+    }
+    if (marginValue && Number(marginValue) > 3) {
+      notes.push(
+        `BrMargin is ${marginValue}. Higher feed margins can make short continuous labels come out longer than expected.`
+      );
+    }
+    if (!notes.length) {
+      notes.push(
+        "No obvious saved-default conflict was found. The next suspects are Brother filter behavior for continuous media and feed margin settings."
+      );
+    }
+    return notes;
+  }
+
   // frontend/src/config.ts
   configureApiClient();
   var COPY_BUTTON_RESET_DELAY_MS = 1500;
@@ -3658,77 +3724,8 @@
   function renderQueueDefaults(data) {
     renderHighlightedJson(queueDefaultsPanel, data);
   }
-  function troubleshootQueue(config, options, defaults2) {
-    if (!config || !options || !defaults2) {
-      return [
-        "Query a queue to inspect likely causes of rotation or scaling problems."
-      ];
-    }
-    const notes = [];
-    const orientationValue = defaults2["orientation-requested"];
-    const mediaValue = defaults2.media ?? defaults2.PageSize;
-    const scalingValue = defaults2.scaling;
-    const fitToPageValue = defaults2["fit-to-page"];
-    const numberUpValue = defaults2["number-up"];
-    const marginValue = defaults2.BrMargin;
-    const expectedContinuousMedia = `${String(config.stock_width_mm).replace(/\.0$/, "")}X1`;
-    if (orientationValue && orientationValue !== "3") {
-      notes.push(
-        `Saved default orientation is ${orientationValue}, not portrait (3). This can rotate jobs before the Brother driver sees them.`
-      );
-    }
-    if (defaults2.landscape === "true") {
-      notes.push(
-        "Saved queue defaults include the bare `landscape` flag. That can force rotation regardless of document size."
-      );
-    }
-    if (fitToPageValue && fitToPageValue !== "false") {
-      notes.push(
-        `Saved default fit-to-page is ${fitToPageValue}. That can rescale labels unexpectedly.`
-      );
-    }
-    if (scalingValue && scalingValue !== "100") {
-      notes.push(
-        `Saved default scaling is ${scalingValue} instead of 100. That can shrink or enlarge labels.`
-      );
-    }
-    if (numberUpValue && numberUpValue !== "1") {
-      notes.push(
-        `Saved default number-up is ${numberUpValue} instead of 1. That can place labels on a reduced layout.`
-      );
-    }
-    if (config.stock_is_continuous && mediaValue && mediaValue.toUpperCase() !== expectedContinuousMedia.toUpperCase()) {
-      notes.push(
-        `Saved default media is ${mediaValue}, but the loaded stock is a ${expectedContinuousMedia} continuous roll. The app overrides media per job, but mismatched queue defaults are still suspicious.`
-      );
-    }
-    if (!config.stock_is_continuous && mediaValue) {
-      const expectedFixedMedia = `${config.stock_width_mm}x${config.stock_length_mm}`;
-      if (mediaValue.toLowerCase() !== expectedFixedMedia.toLowerCase()) {
-        notes.push(
-          `Saved default media is ${mediaValue}, not ${expectedFixedMedia}. The app overrides media per job, but mismatched queue defaults are still suspicious.`
-        );
-      }
-    }
-    if (marginValue && Number(marginValue) > 3) {
-      notes.push(
-        `BrMargin is ${marginValue}. Higher feed margins can make short continuous labels come out longer than expected.`
-      );
-    }
-    if (!("orientation-requested" in defaults2) && !("landscape" in defaults2)) {
-      notes.push(
-        "No saved queue orientation override was found. If jobs still rotate, the Brother filter is likely inferring orientation from the selected media mode."
-      );
-    }
-    if (!notes.length) {
-      notes.push(
-        "No obvious saved-default conflict was found. The next suspects are Brother filter behavior for continuous media and feed margin settings."
-      );
-    }
-    return notes;
-  }
-  function renderTroubleshooting(config, options, defaults2) {
-    const items = troubleshootQueue(config, options, defaults2);
+  function renderTroubleshooting(config, defaults2) {
+    const items = buildQueueTroubleshootingNotes(config, defaults2);
     queueTroubleshootingEl.innerHTML = `<ul class="space-y-2">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
   }
   async function loadQueueDiagnostics({
@@ -3743,7 +3740,7 @@
     }
     renderPlainText(queueOptionsPanel, "Loading queue options...");
     renderPlainText(queueDefaultsPanel, "Loading queue defaults...");
-    renderTroubleshooting(currentConfig, null, null);
+    renderTroubleshooting(currentConfig, null);
     try {
       const [optionsResponse, defaultsResponse] = await Promise.all([
         getConfigOptionsApiConfigOptionsGet({
@@ -3757,11 +3754,7 @@
       ]);
       renderQueueOptions(optionsResponse.data);
       renderQueueDefaults(defaultsResponse.data);
-      renderTroubleshooting(
-        currentConfig,
-        optionsResponse.data,
-        defaultsResponse.data
-      );
+      renderTroubleshooting(currentConfig, defaultsResponse.data);
       if (showLoadingStatus) {
         setStatus(`Queue details loaded for ${queueName}.`);
       }
@@ -3769,7 +3762,7 @@
       console.error(error);
       renderPlainText(queueOptionsPanel, getErrorMessage(error));
       renderPlainText(queueDefaultsPanel, getErrorMessage(error));
-      renderTroubleshooting(currentConfig, null, null);
+      renderTroubleshooting(currentConfig, null);
       if (showLoadingStatus) {
         setStatus(getErrorMessage(error), true);
       }

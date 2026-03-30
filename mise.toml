@@ -18,6 +18,7 @@ run = [
   "pnpm install --frozen-lockfile",
   "pnpm build:frontend",
   "pnpm biome:check",
+  "pnpm test:frontend",
   "pnpm typecheck:frontend",
 ]
 
@@ -44,35 +45,38 @@ run = "uv run pytest"
 [tasks.favicon_inner]
 description = "Export one favicon size from printpage/static/favicon.svg"
 usage = '''
+arg "<source>" help="svg filename prefix without the .svg extension, e.g. 'favicon' or 'favicon2'"
 arg "<size>" help="PNG size in px"
 '''
 run = '''
 set -euo pipefail
+source="${usage_source?missing source}"
 size="${usage_size?missing size}"
 
-inkscape printpage/static/favicon.svg \
+inkscape printpage/static/${source}.svg \
   --export-type=png \
-  --export-filename="printpage/static/favicon-${size}.png" \
+  --export-filename="printpage/static/${source}-${size}.png" \
   --export-width="${size}"
 '''
 
 
 [tasks.favicon-192]
 description = "Generate 192x192 favicon"
-run = "mise run favicon_inner 192"
+run = ["mise run favicon_inner favicon 192", "mise run favicon_inner favicon2 192"]
 
 [tasks.favicon-128]
 description = "Generate 128 favicon"
-run = "mise run favicon_inner 128"
+run = ["mise run favicon_inner favicon 128", "mise run favicon_inner favicon2 128"]
 
 [tasks.favicon-512]
 description = "Generate 512x512 favicon"
-run = "mise run favicon_inner 512"
+run = ["mise run favicon_inner favicon 512", "mise run favicon_inner favicon2 512"]
 
 
 [tasks.favicon]
 description = "Generate favicons in multiple sizes for better compatibility with different browsers and platforms"
 depends = ["favicon-128", "favicon-192", "favicon-512"]
 run = [
-  "cp printpage/static/favicon-128.png printpage/static/favicon.png"
+  "cp printpage/static/favicon-128.png printpage/static/favicon.png",
+  "cp printpage/static/favicon2-128.png printpage/static/favicon2.png"
 ]

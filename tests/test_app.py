@@ -225,7 +225,10 @@ def test_frontend_editor_source_tracks_dirty_state_and_delete_confirmation() -> 
     assert "stock-warning" in template
     assert "secondary-dimension-label" in template
     assert "updateDimensionLabels" in source
+    assert "setDimensionToPrinterWidth" in source
     assert 'id="orientation"' in template
+    assert 'id="set-width-to-printer-button"' in template
+    assert 'id="set-height-to-printer-button"' in template
     assert "is-continuous-toggle" not in template
     assert 'requireElement<HTMLInputElement>("is_continuous")' not in source
     assert "baselinePayloadSnapshot" in source

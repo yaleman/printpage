@@ -3544,9 +3544,18 @@
   var borderToggle = requireElement("border-enabled-toggle");
   var borderInput = requireElement("border_enabled");
   var borderFields = requireElement("border-fields");
+  var widthInput = requireElement("width_mm");
+  var heightInput = requireElement("height_mm");
+  var setWidthToPrinterButton = requireElement(
+    "set-width-to-printer-button"
+  );
+  var setHeightToPrinterButton = requireElement(
+    "set-height-to-printer-button"
+  );
   var secondaryDimensionLabel = requireElement(
     "secondary-dimension-label"
   );
+  var orientationSelect = requireElement("orientation");
   var activeStockSummaryEl = requireElement(
     "active-stock-summary"
   );
@@ -3669,6 +3678,10 @@
   }
   function updateDimensionLabels() {
     secondaryDimensionLabel.textContent = activeStock.stock_is_continuous ? "Length (mm)" : "Height (mm)";
+  }
+  function setDimensionToPrinterWidth(targetInput) {
+    targetInput.value = String(activeStock.stock_width_mm);
+    schedulePreview();
   }
   function effectiveDimensions(profile) {
     return profile.orientation === "landscape" ? {
@@ -3881,8 +3894,8 @@
           requireElement("border_radius_mm").value
         )
       },
-      width_mm: Number(requireElement("width_mm").value),
-      height_mm: Number(requireElement("height_mm").value),
+      width_mm: Number(widthInput.value),
+      height_mm: Number(heightInput.value),
       orientation: requireElement("orientation").value,
       cut_every: Number(requireElement("cut_every").value),
       quality: requireElement("quality").value,
@@ -3895,13 +3908,9 @@
   function fillForm(profile) {
     const normalizedProfile = normalizeProfile(profile);
     requireElement("name").value = normalizedProfile.name;
-    requireElement("width_mm").value = String(
-      normalizedProfile.width_mm
-    );
-    requireElement("height_mm").value = String(
-      normalizedProfile.height_mm
-    );
-    requireElement("orientation").value = normalizedProfile.orientation;
+    widthInput.value = String(normalizedProfile.width_mm);
+    heightInput.value = String(normalizedProfile.height_mm);
+    orientationSelect.value = normalizedProfile.orientation;
     requireElement("quality").value = normalizedProfile.quality;
     requireElement("cut_every").value = String(
       normalizedProfile.cut_every
@@ -4136,6 +4145,12 @@
   });
   printButton.addEventListener("click", () => {
     void printLabel();
+  });
+  setWidthToPrinterButton.addEventListener("click", () => {
+    setDimensionToPrinterWidth(widthInput);
+  });
+  setHeightToPrinterButton.addEventListener("click", () => {
+    setDimensionToPrinterWidth(heightInput);
   });
   profilePicker.addEventListener("change", () => {
     if (profilePicker.value) {

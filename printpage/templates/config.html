@@ -4,11 +4,7 @@
     <meta charset="utf-8">
     <title>Printer Settings</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
-    <link rel="icon" href="/static/favicon.png" type="image/png">
-    <link rel="icon" href="/static/favicon-128.png" sizes="128x128" type="image/png">
-    <link rel="icon" href="/static/favicon-192.png" sizes="192x192" type="image/png">
-    <link rel="icon" href="/static/favicon-512.png" sizes="512x512" type="image/png">
+    {% include "favicons.html" %}
     <link rel="stylesheet" href="/static/app.css">
     <script defer src="/static/config.js"></script>
   </head>
@@ -117,12 +113,14 @@
             <h2 class="text-sm font-semibold tracking-[0.16em] uppercase text-stone-900">Advertised queue options</h2>
             <button type="button" id="copy-queue-options" class="inline-copy-control">Copy</button>
           </div>
-          <pre id="queue-options" class="mt-4 overflow-auto rounded-xl bg-stone-950 p-4 font-mono text-sm leading-6 text-stone-100">Query a queue to inspect `lpoptions -l` output.</pre>
+          <pre id="queue-options"
+            class="mt-4 overflow-auto rounded-xl bg-stone-950 p-4 font-mono text-sm leading-6 text-stone-100">Query a queue to inspect `lpoptions -l` output.</pre>
           <div class="json-panel-heading mt-4">
             <h2 class="text-sm font-semibold tracking-[0.16em] uppercase text-stone-900">Saved queue defaults</h2>
             <button type="button" id="copy-queue-defaults" class="inline-copy-control">Copy</button>
           </div>
-          <pre id="queue-defaults" class="mt-4 overflow-auto rounded-xl bg-stone-950 p-4 font-mono text-sm leading-6 text-stone-100">Query a queue to inspect `lpoptions -p &lt;queue&gt;` output.</pre>
+          <pre id="queue-defaults"
+            class="mt-4 overflow-auto rounded-xl bg-stone-950 p-4 font-mono text-sm leading-6 text-stone-100">Query a queue to inspect `lpoptions -p &lt;queue&gt;` output.</pre>
         </section>
       </div>
     </main>

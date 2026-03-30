@@ -12,7 +12,7 @@
     <main class="mx-auto max-w-6xl p-6">
       <div class="mb-6 flex items-center justify-between gap-4">
         <div>
-          <h1 class="text-xl font-semibold tracking-[0.16em] uppercase text-stone-900">Printer settings</h1>
+          <h1 class="app-heading-1">Printer settings</h1>
           <p class="mt-1 text-sm text-stone-500">Choose the active CUPS queue for print jobs.</p>
         </div>
         <div class="flex items-center gap-2">
@@ -21,7 +21,7 @@
             aria-live="polite"
             data-state="loading"
             class="queue-indicator">
-            <span class="text-[10px] font-semibold uppercase tracking-[0.16em]">Queue</span>
+            <span class="text-[10px] font-semibold">Queue</span>
             <span id="queue-status-text" class="queue-indicator__count">Checking...</span>
           </div>
           <a href="/" class="nav-button nav-button--secondary">Back to labels</a>
@@ -30,7 +30,7 @@
 
       <section class="panel-card mb-4 p-4">
         <div class="json-panel-heading">
-          <h2 class="text-sm font-semibold tracking-[0.16em] uppercase text-stone-900">Troubleshooting</h2>
+          <h2 class="app-heading-2">Troubleshooting</h2>
         </div>
         <div id="queue-troubleshooting" class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
           Queue diagnostics load automatically and will call out likely causes of rotation or scaling problems.
@@ -47,7 +47,7 @@
 
             <div class="rounded-xl border border-stone-200 bg-stone-50 p-3">
               <div class="mb-3">
-                <h2 class="text-sm font-semibold text-stone-900">Loaded stock</h2>
+                <h2 class="app-heading-2">Loaded stock</h2>
                 <p class="text-xs text-stone-500">Use the stock that is physically loaded in the printer.</p>
               </div>
 
@@ -105,18 +105,18 @@
 
         <section class="panel-card p-4">
           <div class="json-panel-heading">
-            <h2 class="text-sm font-semibold tracking-[0.16em] uppercase text-stone-900">Current queue state</h2>
+            <h2 class="app-heading-2">Current queue state</h2>
             <button type="button" id="copy-config-state" class="inline-copy-control">Copy</button>
           </div>
           <pre id="config-state" class="mt-4 overflow-auto rounded-xl bg-stone-950 p-4 font-mono text-sm leading-6 text-stone-100">Loading...</pre>
           <div class="json-panel-heading mt-4">
-            <h2 class="text-sm font-semibold tracking-[0.16em] uppercase text-stone-900">Advertised queue options</h2>
+            <h2 class="app-heading-2">Advertised queue options</h2>
             <button type="button" id="copy-queue-options" class="inline-copy-control">Copy</button>
           </div>
           <pre id="queue-options"
             class="mt-4 overflow-auto rounded-xl bg-stone-950 p-4 font-mono text-sm leading-6 text-stone-100">Query a queue to inspect `lpoptions -l` output.</pre>
           <div class="json-panel-heading mt-4">
-            <h2 class="text-sm font-semibold tracking-[0.16em] uppercase text-stone-900">Saved queue defaults</h2>
+            <h2 class="app-heading-2">Saved queue defaults</h2>
             <button type="button" id="copy-queue-defaults" class="inline-copy-control">Copy</button>
           </div>
           <pre id="queue-defaults"

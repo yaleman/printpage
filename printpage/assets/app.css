@@ -26,12 +26,20 @@
 }
 
 @layer components {
+  .app-heading-1 {
+    @apply text-xl font-semibold text-stone-900;
+  }
+
+  .app-heading-2 {
+    @apply text-sm font-semibold text-stone-900;
+  }
+
   .app-input {
     @apply h-10 w-full rounded-lg border border-stone-300 bg-white px-3 text-sm text-stone-900 shadow-sm transition focus:border-stone-900 focus:outline-none;
   }
 
   .app-label {
-    @apply mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500;
+    @apply mb-2 block text-[11px] font-semibold text-stone-500;
   }
 
   .nav-button {

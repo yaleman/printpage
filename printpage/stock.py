@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from .models import LabelProfileInput
 
 MATCH_TOLERANCE_MM = 0.1
+CONTINUOUS_PRINT_WIDTH_TRIM_MM = 1.0
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,7 @@ class ResolvedPrintLayout:
     page_height_mm: float
     content_width_mm: float
     content_height_mm: float
+    media_width_mm: float
     is_continuous_roll_media: bool
     warning_message: str | None
 
@@ -34,6 +36,7 @@ def resolve_preview_layout(profile: LabelProfileInput) -> ResolvedPrintLayout:
         page_height_mm=content_height_mm,
         content_width_mm=content_width_mm,
         content_height_mm=content_height_mm,
+        media_width_mm=content_width_mm,
         is_continuous_roll_media=False,
         warning_message=None,
     )
@@ -103,17 +106,26 @@ def resolve_print_layout(
     )
 
     if stock_is_continuous:
-        page_width_mm = stock_width_mm
+        printed_width_mm = stock_width_mm
+        rendered_content_width_mm = content_width_mm
+        if matches_dimension(content_width_mm, stock_width_mm):
+            printed_width_mm = max(stock_width_mm - CONTINUOUS_PRINT_WIDTH_TRIM_MM, 1.0)
+            rendered_content_width_mm = max(
+                content_width_mm - CONTINUOUS_PRINT_WIDTH_TRIM_MM, 1.0
+            )
+        page_width_mm = printed_width_mm
         page_height_mm = content_height_mm
     else:
         page_width_mm = stock_width_mm
         page_height_mm = stock_length_mm or content_height_mm
+        rendered_content_width_mm = content_width_mm
 
     return ResolvedPrintLayout(
         page_width_mm=page_width_mm,
         page_height_mm=page_height_mm,
-        content_width_mm=content_width_mm,
+        content_width_mm=rendered_content_width_mm,
         content_height_mm=content_height_mm,
+        media_width_mm=stock_width_mm if stock_is_continuous else page_width_mm,
         is_continuous_roll_media=stock_is_continuous,
         warning_message=compatibility.warning_message,
     )

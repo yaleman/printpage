@@ -378,10 +378,10 @@ function updateStockIndicators(
 		? compatibility.fits_loaded_stock
 			? effective.width_mm < activeStock.stock_width_mm - MATCH_TOLERANCE_MM
 				? `This ${profile.orientation} design is narrower than the loaded roll and will leave unused width.`
-				: "This design fits the loaded roll width."
+				: ""
 			: "The selected orientation is too wide for the loaded roll."
 		: compatibility.fits_loaded_stock
-			? "This design matches the loaded stock."
+			? ""
 			: "Loaded stock may not match this design.";
 	stockWarningEl.textContent = compatibility.warning_message ?? "";
 	stockWarningEl.classList.toggle(
@@ -521,9 +521,7 @@ function renderRowList(): void {
 			"data-[active=false]:bg-stone-50 data-[active=false]:text-stone-700 " +
 			"data-[active=false]:hover:border-stone-400 data-[active=false]:hover:bg-white";
 		button.innerHTML = `
-      <span class="text-[10px] font-semibold uppercase tracking-[0.16em] opacity-70">Row ${
-				index + 1
-			}</span>
+      <span class="text-[10px] font-semibold opacity-70">Row ${index + 1}</span>
       <span class="mt-1 line-clamp-2 text-sm font-medium">${rowSummary(row, index)}</span>
     `;
 		button.addEventListener("click", () => {

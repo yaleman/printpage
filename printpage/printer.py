@@ -271,7 +271,7 @@ def apply_profile_to_printer(
     cut_value, quality_key = validate_profile_options(queue_name, profile, choices)
     orientation_value = orientation_request_value(profile)
     size_value = (
-        continuous_roll_media_value(layout.page_width_mm, choices)
+        continuous_roll_media_value(layout.media_width_mm, choices)
         if layout.is_continuous_roll_media
         else media_size_value(layout.page_width_mm, layout.page_height_mm)
     )

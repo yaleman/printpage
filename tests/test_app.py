@@ -766,6 +766,59 @@ def test_print_continuous_stock_does_not_rotate_transposed_profile(
     assert "label--rotated" not in captured["html"]
 
 
+def test_print_continuous_stock_trims_exact_roll_width_by_one_mm(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state.save_state(
+        state.build_default_state(queue_name="QL700").model_copy(
+            update={
+                "stock_width_mm": 62,
+                "stock_is_continuous": True,
+                "stock_length_mm": None,
+            }
+        )
+    )
+    captured: dict[str, str] = {}
+    commands: list[list[str]] = []
+
+    def fake_html_to_pdf_bytes(html: str) -> bytes:
+        captured["html"] = html
+        return b"%PDF-test"
+
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        commands.append(cmd)
+        if cmd == ["lpoptions", "-p", "QL700", "-l"]:
+            return completed(
+                cmd,
+                stdout=(
+                    "PageSize/Media Size: *62x29 62X1 62x100\n"
+                    "BrCutLabel/Cut Label: *1 2 3\n"
+                    "BrPriority/Quality: BrSpeed *BrQuality\n"
+                ),
+            )
+        if cmd[:4] == ["sudo", "/usr/sbin/lpadmin", "-p", "QL700"]:
+            return completed(cmd, stdout="applied\n")
+        if cmd[:2] == ["lp", "-d"]:
+            return completed(cmd, stdout="request id is QL700-1\n")
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    response = client.post(
+        "/print",
+        json=default_profile_payload(width_mm=62, height_mm=40, quantity=1),
+    )
+
+    assert response.status_code == 200
+    assert "size: 61mm 40mm;" in captured["html"]
+    assert "width: 61mm;" in captured["html"]
+    assert "height: 40mm;" in captured["html"]
+    assert "PageSize=62X1" in commands[1]
+    assert "media=62X1" in commands[1]
+
+
 def test_print_uses_explicit_landscape_orientation_without_auto_rotation(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

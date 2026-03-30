@@ -39,3 +39,40 @@ run = "uv run ty check"
 [tasks.pytest]
 description = "Run tests with pytest"
 run = "uv run pytest"
+
+
+[tasks.favicon_inner]
+description = "Export one favicon size from printpage/static/favicon.svg"
+usage = '''
+arg "<size>" help="PNG size in px"
+'''
+run = '''
+set -euo pipefail
+size="${usage_size?missing size}"
+
+inkscape printpage/static/favicon.svg \
+  --export-type=png \
+  --export-filename="printpage/static/favicon-${size}.png" \
+  --export-width="${size}"
+'''
+
+
+[tasks.favicon-192]
+description = "Generate 192x192 favicon"
+run = "mise run favicon_inner 192"
+
+[tasks.favicon-128]
+description = "Generate 128 favicon"
+run = "mise run favicon_inner 128"
+
+[tasks.favicon-512]
+description = "Generate 512x512 favicon"
+run = "mise run favicon_inner 512"
+
+
+[tasks.favicon]
+description = "Generate favicons in multiple sizes for better compatibility with different browsers and platforms"
+depends = ["favicon-128", "favicon-192", "favicon-512"]
+run = [
+  "cp printpage/static/favicon-128.png printpage/static/favicon.png"
+]

@@ -1,0 +1,25 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="256" height="256" rx="56" fill="#F4F4F5"/>
+
+  <!-- printer body -->
+  <rect x="48" y="76" width="160" height="92" rx="20" fill="#27272A"/>
+  <rect x="64" y="92" width="128" height="18" rx="9" fill="#3F3F46"/>
+  <circle cx="78" cy="101" r="5" fill="#A1A1AA"/>
+  <circle cx="94" cy="101" r="5" fill="#A1A1AA"/>
+
+  <!-- paper/pdf -->
+  <path d="M150 46H94C87.3726 46 82 51.3726 82 58V98H162V58C162 51.3726 156.627 46 150 46Z" fill="white"/>
+  <path d="M150 46V66C150 70.4183 153.582 74 158 74H162" fill="#E4E4E7"/>
+  <path d="M150 46L162 58V74" stroke="#D4D4D8" stroke-width="4" stroke-linejoin="round"/>
+  <text x="122" y="78" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700" fill="#DC2626">PDF</text>
+
+  <!-- label coming out -->
+  <path d="M76 150H180V196C180 202.627 174.627 208 168 208H88C81.3726 208 76 202.627 76 196V150Z" fill="white"/>
+  <circle cx="96" cy="179" r="10" fill="#E4E4E7"/>
+  <circle cx="96" cy="179" r="3.5" fill="#A1A1AA"/>
+  <rect x="114" y="168" width="46" height="8" rx="4" fill="#27272A"/>
+  <rect x="114" y="182" width="34" height="8" rx="4" fill="#71717A"/>
+
+  <!-- cut line -->
+  <path d="M180 174H196" stroke="#A1A1AA" stroke-width="4" stroke-linecap="round" stroke-dasharray="6 6"/>
+</svg>

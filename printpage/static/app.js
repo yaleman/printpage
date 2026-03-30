@@ -3838,7 +3838,7 @@
     const stockFit = evaluateStockFit(profile, activeStock);
     const effective = effectiveDimensions(profile);
     activeStockSummaryEl.textContent = describeStock2(activeStock);
-    stockMatchSummaryEl.textContent = activeStock.stock_is_continuous ? stockFit.fit_mode === "fits_selected" ? effective.width_mm < activeStock.stock_width_mm - MATCH_TOLERANCE_MM ? `This ${profile.orientation} design is narrower than the loaded roll and will leave unused width.` : "" : stockFit.fit_mode === "fits_auto_switched" ? `Print output will switch to ${stockFit.applied_orientation} on the loaded roll.` : "The selected orientation is too wide for the loaded roll." : stockFit.fits_loaded_stock ? "" : "Loaded stock may not match this design.";
+    stockMatchSummaryEl.textContent = activeStock.stock_is_continuous ? stockFit.fit_mode === "fits_selected" ? effective.width_mm < activeStock.stock_width_mm - MATCH_TOLERANCE_MM ? `This ${profile.orientation} design is narrower than the loaded roll and will leave unused width.` : "" : stockFit.fit_mode === "fits_auto_switched" ? "" : "The selected orientation is too wide for the loaded roll." : stockFit.fits_loaded_stock ? "" : "Loaded stock may not match this design.";
     setStockNotice(stockFit.message, stockFit.message_level);
   }
   function updatePreviewMeta(profile) {

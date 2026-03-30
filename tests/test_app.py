@@ -847,6 +847,8 @@ def test_print_applies_profile_then_submits_lp_job(
         "-o",
         "media=62x29",
         "-o",
+        "orientation-requested=3",
+        "-o",
         "BrCutLabel=1",
         "-o",
         "BrCutAtEnd=ON",
@@ -855,9 +857,11 @@ def test_print_applies_profile_then_submits_lp_job(
     ]
     assert commands[2][0:4] == ["lp", "-d", "QL700", "-n"]
     assert commands[2][4] == "3"
-    assert commands[2][5:13] == [
+    assert commands[2][5:15] == [
         "-o",
         "media=62x29",
+        "-o",
+        "orientation-requested=3",
         "-o",
         "BrCutLabel=1",
         "-o",
@@ -883,9 +887,11 @@ def test_print_supports_quality_option_named_quality(
                 ),
             )
         if cmd[:4] == ["sudo", "/usr/sbin/lpadmin", "-p", "QL700"]:
+            assert "orientation-requested=3" in cmd
             assert cmd[-1] == "Quality=BrSpeed"
             return completed(cmd, stdout="applied\n")
         if cmd[:2] == ["lp", "-d"]:
+            assert "orientation-requested=3" in cmd
             return completed(cmd, stdout="request id is QL700-1\n")
         raise AssertionError(f"Unexpected command: {cmd}")
 
@@ -949,22 +955,77 @@ def test_print_uses_loaded_continuous_stock_for_rotated_jobs(
         "-o",
         "media=62X1",
         "-o",
+        "orientation-requested=3",
+        "-o",
         "BrCutLabel=1",
         "-o",
         "BrCutAtEnd=ON",
         "-o",
         "BrPriority=BrQuality",
     ]
-    assert commands[2][5:13] == [
+    assert commands[2][5:15] == [
         "-o",
         "media=62X1",
         "-o",
+        "orientation-requested=3",
+        "-o",
         "BrCutLabel=1",
         "-o",
         "BrCutAtEnd=ON",
         "-o",
         "BrPriority=BrQuality",
     ]
+
+
+def test_print_sets_landscape_orientation_request_for_landscape_jobs(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state.save_state(
+        state.build_default_state(queue_name="QL700").model_copy(
+            update={
+                "stock_width_mm": 62,
+                "stock_is_continuous": True,
+                "stock_length_mm": None,
+            }
+        )
+    )
+
+    commands: list[list[str]] = []
+
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        commands.append(cmd)
+        if cmd == ["lpoptions", "-p", "QL700", "-l"]:
+            return completed(
+                cmd,
+                stdout=(
+                    "PageSize/Media Size: *62x29 62X1 62x100\n"
+                    "BrCutLabel/Cut Label: *1 2 3\n"
+                    "BrPriority/Quality: BrSpeed *BrQuality\n"
+                ),
+            )
+        if cmd[:4] == ["sudo", "/usr/sbin/lpadmin", "-p", "QL700"]:
+            return completed(cmd, stdout="applied\n")
+        if cmd[:2] == ["lp", "-d"]:
+            return completed(cmd, stdout="request id is QL700-1\n")
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", lambda html: b"%PDF-test")
+
+    response = client.post(
+        "/print",
+        json=default_profile_payload(
+            width_mm=62,
+            height_mm=40,
+            orientation="landscape",
+            quantity=1,
+        ),
+    )
+
+    assert response.status_code == 200
+    assert "orientation-requested=4" in commands[1]
+    assert "orientation-requested=4" in commands[2]
 
 
 def test_print_rejects_unsupported_cut_value(

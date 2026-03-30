@@ -152,7 +152,7 @@ def print_label(profile: LabelProfileInput) -> PrintJobResult:
         stock_is_continuous=state.stock_is_continuous,
         stock_length_mm=state.stock_length_mm,
     )
-    media_value, cut_value, quality_key = apply_profile_to_printer(
+    media_value, cut_value, quality_key, orientation_value = apply_profile_to_printer(
         state.queue_name, profile, layout
     )
     html = render_label_html(profile, layout)
@@ -167,6 +167,7 @@ def print_label(profile: LabelProfileInput) -> PrintJobResult:
                 profile.quantity,
                 tmp.name,
                 media_value=media_value,
+                orientation_value=orientation_value,
                 cut_value=cut_value,
                 quality_key=quality_key,
                 quality_value=profile.quality,

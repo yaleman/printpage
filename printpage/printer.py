@@ -177,6 +177,10 @@ def media_size_value(width_mm: float, height_mm: float) -> str:
     return f"{mm_to_css(width_mm)}x{mm_to_css(height_mm)}"
 
 
+def orientation_request_value(profile: LabelProfileInput) -> str:
+    return "4" if profile.orientation == "landscape" else "3"
+
+
 def continuous_roll_media_value(
     width_mm: float,
     choices: dict[str, dict[str, str | list[str] | None]],
@@ -239,9 +243,10 @@ def apply_profile_to_printer(
     queue_name: str,
     profile: LabelProfileInput,
     layout: ResolvedPrintLayout,
-) -> tuple[str, str, str]:
+) -> tuple[str, str, str, str]:
     choices = get_queue_choices(queue_name)
     cut_value, quality_key = validate_profile_options(queue_name, profile, choices)
+    orientation_value = orientation_request_value(profile)
     size_value = (
         continuous_roll_media_value(layout.page_width_mm, choices)
         if layout.is_continuous_roll_media
@@ -258,6 +263,8 @@ def apply_profile_to_printer(
         "-o",
         f"media={size_value}",
         "-o",
+        f"orientation-requested={orientation_value}",
+        "-o",
         f"BrCutLabel={cut_value}",
         "-o",
         "BrCutAtEnd=ON",
@@ -272,7 +279,7 @@ def apply_profile_to_printer(
             detail=f"Failed to apply printer settings: {proc.stderr.strip() or proc.stdout.strip()}",
         )
 
-    return size_value, cut_value, quality_key
+    return size_value, cut_value, quality_key, orientation_value
 
 
 def submit_print_job(
@@ -281,6 +288,7 @@ def submit_print_job(
     pdf_path: str,
     *,
     media_value: str,
+    orientation_value: str,
     cut_value: str,
     quality_key: str,
     quality_value: str,
@@ -293,6 +301,8 @@ def submit_print_job(
         str(quantity),
         "-o",
         f"media={media_value}",
+        "-o",
+        f"orientation-requested={orientation_value}",
         "-o",
         f"BrCutLabel={cut_value}",
         "-o",

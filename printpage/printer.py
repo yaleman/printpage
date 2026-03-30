@@ -94,6 +94,18 @@ def parse_lpoptions_choices(
     return parsed
 
 
+def parse_lpoptions_defaults(output: str) -> dict[str, str]:
+    defaults: dict[str, str] = {}
+
+    for token in shlex.split(output.strip()):
+        name, separator, value = token.partition("=")
+        if not name:
+            continue
+        defaults[name] = value if separator else "true"
+
+    return defaults
+
+
 def get_available_queues() -> tuple[list[str], str | None]:
     proc = run_command(["lpstat", "-p", "-d"])
     if proc.returncode != 0:
@@ -123,6 +135,17 @@ def get_queue_choices(queue_name: str) -> dict[str, dict[str, str | list[str] | 
         )
 
     return parse_lpoptions_choices(proc.stdout)
+
+
+def get_queue_defaults(queue_name: str) -> dict[str, str]:
+    proc = run_command(["lpoptions", "-p", queue_name])
+    if proc.returncode != 0:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Failed to read saved printer defaults for {queue_name}: {proc.stderr.strip() or proc.stdout.strip()}",
+        )
+
+    return parse_lpoptions_defaults(proc.stdout)
 
 
 def get_queue_job_ids(queue_name: str) -> list[str]:

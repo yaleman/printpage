@@ -104,6 +104,17 @@
             <button type="button" id="copy-queue-options" class="inline-copy-control">Copy</button>
           </div>
           <pre id="queue-options" class="mt-4 overflow-auto rounded-xl bg-stone-950 p-4 font-mono text-sm leading-6 text-stone-100">Query a queue to inspect `lpoptions -l` output.</pre>
+          <div class="json-panel-heading mt-4">
+            <h2 class="text-sm font-semibold tracking-[0.16em] uppercase text-stone-900">Saved queue defaults</h2>
+            <button type="button" id="copy-queue-defaults" class="inline-copy-control">Copy</button>
+          </div>
+          <pre id="queue-defaults" class="mt-4 overflow-auto rounded-xl bg-stone-950 p-4 font-mono text-sm leading-6 text-stone-100">Query a queue to inspect `lpoptions -p &lt;queue&gt;` output.</pre>
+          <div class="json-panel-heading mt-4">
+            <h2 class="text-sm font-semibold tracking-[0.16em] uppercase text-stone-900">Troubleshooting</h2>
+          </div>
+          <div id="queue-troubleshooting" class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
+            Query a queue to inspect likely causes of rotation or scaling problems.
+          </div>
         </section>
       </div>
     </main>

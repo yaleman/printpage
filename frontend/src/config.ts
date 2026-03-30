@@ -1,10 +1,12 @@
 import {
 	getConfigApiConfigGet,
+	getConfigDefaultsApiConfigDefaultsGet,
 	getConfigOptionsApiConfigOptionsGet,
 	getQueueStatusApiQueueStatusGet,
 	saveConfigApiConfigPost,
 } from "../client/sdk.gen";
 import type {
+	GetConfigDefaultsApiConfigDefaultsGetResponse,
 	GetConfigOptionsApiConfigOptionsGetResponse,
 	QueueState,
 	QueueStatus,
@@ -125,6 +127,10 @@ const refreshButton = requireElement<HTMLButtonElement>("refresh-button");
 const statusEl = requireElement<HTMLElement>("status");
 const configStateEl = requireElement<HTMLElement>("config-state");
 const queueOptionsEl = requireElement<HTMLElement>("queue-options");
+const queueDefaultsEl = requireElement<HTMLElement>("queue-defaults");
+const queueTroubleshootingEl = requireElement<HTMLElement>(
+	"queue-troubleshooting",
+);
 const queueStatusIndicator = requireElement<HTMLElement>(
 	"queue-status-indicator",
 );
@@ -133,6 +139,9 @@ const copyConfigStateButton =
 	requireElement<HTMLButtonElement>("copy-config-state");
 const copyQueueOptionsButton =
 	requireElement<HTMLButtonElement>("copy-queue-options");
+const copyQueueDefaultsButton = requireElement<HTMLButtonElement>(
+	"copy-queue-defaults",
+);
 
 const configStatePanel: JsonPanel = {
 	copyButton: copyConfigStateButton,
@@ -146,8 +155,15 @@ const queueOptionsPanel: JsonPanel = {
 	element: queueOptionsEl,
 	resetTimer: null,
 };
+const queueDefaultsPanel: JsonPanel = {
+	copyButton: copyQueueDefaultsButton,
+	copyText: queueDefaultsEl.textContent ?? "",
+	element: queueDefaultsEl,
+	resetTimer: null,
+};
 let queueStatusPollTimer: number | null = null;
 let queueStatusRequestInFlight = false;
+let currentConfig: QueueState | null = null;
 
 function setQueueStatusIndicator(
 	message: string,
@@ -246,6 +262,7 @@ function updateStockSummary(): void {
 }
 
 function renderConfig(data: QueueState): void {
+	currentConfig = data;
 	queueSelect.innerHTML = "";
 
 	for (const queue of data.queues ?? []) {
@@ -274,6 +291,104 @@ function renderQueueOptions(
 	data: GetConfigOptionsApiConfigOptionsGetResponse,
 ): void {
 	renderHighlightedJson(queueOptionsPanel, data);
+}
+
+function renderQueueDefaults(
+	data: GetConfigDefaultsApiConfigDefaultsGetResponse,
+): void {
+	renderHighlightedJson(queueDefaultsPanel, data);
+}
+
+function troubleshootQueue(
+	config: QueueState | null,
+	options: GetConfigOptionsApiConfigOptionsGetResponse | null,
+	defaults: GetConfigDefaultsApiConfigDefaultsGetResponse | null,
+): string[] {
+	if (!config || !options || !defaults) {
+		return [
+			"Query a queue to inspect likely causes of rotation or scaling problems.",
+		];
+	}
+
+	const notes: string[] = [];
+	const orientationValue = defaults["orientation-requested"];
+	const mediaValue = defaults.media ?? defaults.PageSize;
+	const scalingValue = defaults.scaling;
+	const fitToPageValue = defaults["fit-to-page"];
+	const numberUpValue = defaults["number-up"];
+	const marginValue = defaults.BrMargin;
+	const expectedContinuousMedia = `${String(config.stock_width_mm).replace(/\.0$/, "")}X1`;
+
+	if (orientationValue && orientationValue !== "3") {
+		notes.push(
+			`Saved default orientation is ${orientationValue}, not portrait (3). This can rotate jobs before the Brother driver sees them.`,
+		);
+	}
+	if (defaults.landscape === "true") {
+		notes.push(
+			"Saved queue defaults include the bare `landscape` flag. That can force rotation regardless of document size.",
+		);
+	}
+	if (fitToPageValue && fitToPageValue !== "false") {
+		notes.push(
+			`Saved default fit-to-page is ${fitToPageValue}. That can rescale labels unexpectedly.`,
+		);
+	}
+	if (scalingValue && scalingValue !== "100") {
+		notes.push(
+			`Saved default scaling is ${scalingValue} instead of 100. That can shrink or enlarge labels.`,
+		);
+	}
+	if (numberUpValue && numberUpValue !== "1") {
+		notes.push(
+			`Saved default number-up is ${numberUpValue} instead of 1. That can place labels on a reduced layout.`,
+		);
+	}
+	if (
+		config.stock_is_continuous &&
+		mediaValue &&
+		mediaValue.toUpperCase() !== expectedContinuousMedia.toUpperCase()
+	) {
+		notes.push(
+			`Saved default media is ${mediaValue}, but the loaded stock is a ${expectedContinuousMedia} continuous roll. The app overrides media per job, but mismatched queue defaults are still suspicious.`,
+		);
+	}
+	if (!config.stock_is_continuous && mediaValue) {
+		const expectedFixedMedia = `${config.stock_width_mm}x${config.stock_length_mm}`;
+		if (mediaValue.toLowerCase() !== expectedFixedMedia.toLowerCase()) {
+			notes.push(
+				`Saved default media is ${mediaValue}, not ${expectedFixedMedia}. The app overrides media per job, but mismatched queue defaults are still suspicious.`,
+			);
+		}
+	}
+	if (marginValue && Number(marginValue) > 3) {
+		notes.push(
+			`BrMargin is ${marginValue}. Higher feed margins can make short continuous labels come out longer than expected.`,
+		);
+	}
+	if (!("orientation-requested" in defaults) && !("landscape" in defaults)) {
+		notes.push(
+			"No saved queue orientation override was found. If jobs still rotate, the Brother filter is likely inferring orientation from the selected media mode.",
+		);
+	}
+	if (!notes.length) {
+		notes.push(
+			"No obvious saved-default conflict was found. The next suspects are Brother filter behavior for continuous media and feed margin settings.",
+		);
+	}
+
+	return notes;
+}
+
+function renderTroubleshooting(
+	config: QueueState | null,
+	options: GetConfigOptionsApiConfigOptionsGetResponse | null,
+	defaults: GetConfigDefaultsApiConfigDefaultsGetResponse | null,
+): void {
+	const items = troubleshootQueue(config, options, defaults);
+	queueTroubleshootingEl.innerHTML = `<ul class="space-y-2">${items
+		.map((item) => `<li>${escapeHtml(item)}</li>`)
+		.join("")}</ul>`;
 }
 
 async function copyPanelText(panel: JsonPanel): Promise<void> {
@@ -333,19 +448,35 @@ refreshButton.addEventListener("click", () => {
 });
 
 queryOptionsButton.addEventListener("click", async () => {
-	setStatus(`Querying ${queueSelect.value} options...`);
+	setStatus(`Querying ${queueSelect.value} details...`);
 	renderPlainText(queueOptionsPanel, "Loading queue options...");
+	renderPlainText(queueDefaultsPanel, "Loading queue defaults...");
+	renderTroubleshooting(currentConfig, null, null);
 
 	try {
-		const response = await getConfigOptionsApiConfigOptionsGet({
-			query: { queue_name: queueSelect.value },
-			throwOnError: true,
-		});
-		renderQueueOptions(response.data);
-		setStatus(`Queue options loaded for ${queueSelect.value}.`);
+		const [optionsResponse, defaultsResponse] = await Promise.all([
+			getConfigOptionsApiConfigOptionsGet({
+				query: { queue_name: queueSelect.value },
+				throwOnError: true,
+			}),
+			getConfigDefaultsApiConfigDefaultsGet({
+				query: { queue_name: queueSelect.value },
+				throwOnError: true,
+			}),
+		]);
+		renderQueueOptions(optionsResponse.data);
+		renderQueueDefaults(defaultsResponse.data);
+		renderTroubleshooting(
+			currentConfig,
+			optionsResponse.data,
+			defaultsResponse.data,
+		);
+		setStatus(`Queue details loaded for ${queueSelect.value}.`);
 	} catch (error) {
 		console.error(error);
 		renderPlainText(queueOptionsPanel, getErrorMessage(error));
+		renderPlainText(queueDefaultsPanel, getErrorMessage(error));
+		renderTroubleshooting(currentConfig, null, null);
 		setStatus(getErrorMessage(error), true);
 	}
 });
@@ -356,6 +487,10 @@ copyConfigStateButton.addEventListener("click", () => {
 
 copyQueueOptionsButton.addEventListener("click", () => {
 	void copyPanelText(queueOptionsPanel);
+});
+
+copyQueueDefaultsButton.addEventListener("click", () => {
+	void copyPanelText(queueDefaultsPanel);
 });
 
 stockWidthInput.addEventListener("input", updateStockSummary);

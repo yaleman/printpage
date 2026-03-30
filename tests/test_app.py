@@ -87,6 +87,20 @@ BrPriority/Quality: *BrSpeed BrQuality
     assert parsed["BrPriority"]["choices"] == ["BrSpeed", "BrQuality"]
 
 
+def test_parse_lpoptions_defaults() -> None:
+    output = "copies=1 media=62X1 orientation-requested=4 fit-to-page=false landscape"
+
+    parsed = printer.parse_lpoptions_defaults(output)
+
+    assert parsed == {
+        "copies": "1",
+        "media": "62X1",
+        "orientation-requested": "4",
+        "fit-to-page": "false",
+        "landscape": "true",
+    }
+
+
 def test_parse_lpstat_jobs() -> None:
     output = """QL700-17 alice 1024 Tue 30 Mar 2026 09:00:00 AM AEST
 QL700-18 bob 2048 Tue 30 Mar 2026 09:01:00 AM AEST
@@ -236,12 +250,16 @@ def test_config_source_tracks_stock_controls() -> None:
     assert "updateLengthVisibility" in source
     assert "queryOptionsButton" in source
     assert "getConfigOptionsApiConfigOptionsGet" in source
+    assert "getConfigDefaultsApiConfigDefaultsGet" in source
+    assert "renderTroubleshooting" in source
     assert "getQueueStatusApiQueueStatusGet" in source
     assert "startQueueStatusPolling" in source
     assert "stock-summary" in template
     assert 'id="stock_length_mm"' in template
     assert 'id="query-options-button"' in template
     assert 'id="queue-options"' in template
+    assert 'id="queue-defaults"' in template
+    assert 'id="queue-troubleshooting"' in template
     assert 'id="queue-status-indicator"' in template
 
 
@@ -279,6 +297,9 @@ def test_openapi_schema_hides_html_pages_and_types_api_responses(
     assert payload["paths"]["/api/config"]["get"]["responses"]["200"]["content"][
         "application/json"
     ]["schema"]["$ref"] == "#/components/schemas/QueueState"
+    assert payload["paths"]["/api/config/defaults"]["get"]["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"]["additionalProperties"]["type"] == "string"
     assert payload["paths"]["/api/queue-status"]["get"]["responses"]["200"]["content"][
         "application/json"
     ]["schema"]["$ref"] == "#/components/schemas/QueueStatus"
@@ -436,6 +457,31 @@ def test_get_config_options_returns_parsed_lpoptions(
     assert payload["PageSize"]["default"] == "62x29"
     assert payload["PageSize"]["choices"] == ["62x29", "62x100"]
     assert payload["BrPriority"]["choices"] == ["BrSpeed", "BrQuality"]
+
+
+def test_get_config_defaults_returns_saved_lpoptions(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd == ["lpoptions", "-p", "Brother_QL700"]:
+            return completed(
+                cmd,
+                stdout="copies=1 media=62X1 orientation-requested=3 fit-to-page=false",
+            )
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    response = client.get("/api/config/defaults", params={"queue_name": "Brother_QL700"})
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "copies": "1",
+        "media": "62X1",
+        "orientation-requested": "3",
+        "fit-to-page": "false",
+    }
 
 
 def test_get_queue_status_returns_job_count_for_active_queue(

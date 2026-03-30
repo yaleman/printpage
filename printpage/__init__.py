@@ -14,7 +14,12 @@ from .models import (
     QueueState,
     QueueStatus,
 )
-from .printer import get_available_queues, get_queue_choices, read_queue_status
+from .printer import (
+    get_available_queues,
+    get_queue_choices,
+    get_queue_defaults,
+    read_queue_status,
+)
 from .rendering import html_to_pdf_bytes, render_label_html, templates
 from .stock import resolve_preview_layout, resolve_print_layout
 from .state import (
@@ -118,6 +123,12 @@ def save_config(queue_config: QueueConfig) -> QueueState:
 def get_config_options(queue_name: str | None = Query(default=None)) -> dict[str, dict[str, str | list[str] | None]]:
     state = resolve_state()
     return get_queue_choices(queue_name or state.queue_name)
+
+
+@app.get("/api/config/defaults")
+def get_config_defaults(queue_name: str | None = Query(default=None)) -> dict[str, str]:
+    state = resolve_state()
+    return get_queue_defaults(queue_name or state.queue_name)
 
 
 @app.get("/api/queue-status", response_model=QueueStatus)

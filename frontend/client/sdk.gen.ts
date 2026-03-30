@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateProfileEndpointApiProfilesPostData, CreateProfileEndpointApiProfilesPostErrors, CreateProfileEndpointApiProfilesPostResponses, DeleteProfileEndpointApiProfilesProfileIdDeleteData, DeleteProfileEndpointApiProfilesProfileIdDeleteErrors, DeleteProfileEndpointApiProfilesProfileIdDeleteResponses, GenerateLabelPdfLabelsPdfPostData, GenerateLabelPdfLabelsPdfPostErrors, GenerateLabelPdfLabelsPdfPostResponses, GetConfigApiConfigGetData, GetConfigApiConfigGetResponses, GetConfigOptionsApiConfigOptionsGetData, GetConfigOptionsApiConfigOptionsGetErrors, GetConfigOptionsApiConfigOptionsGetResponses, GetQueueStatusApiQueueStatusGetData, GetQueueStatusApiQueueStatusGetErrors, GetQueueStatusApiQueueStatusGetResponses, GetStateApiStateGetData, GetStateApiStateGetResponses, PrintLabelPrintPostData, PrintLabelPrintPostErrors, PrintLabelPrintPostResponses, SaveConfigApiConfigPostData, SaveConfigApiConfigPostErrors, SaveConfigApiConfigPostResponses, SelectProfileEndpointApiProfilesProfileIdSelectPostData, SelectProfileEndpointApiProfilesProfileIdSelectPostErrors, SelectProfileEndpointApiProfilesProfileIdSelectPostResponses, UpdateProfileEndpointApiProfilesProfileIdPutData, UpdateProfileEndpointApiProfilesProfileIdPutErrors, UpdateProfileEndpointApiProfilesProfileIdPutResponses } from './types.gen';
+import type { CreateProfileEndpointApiProfilesPostData, CreateProfileEndpointApiProfilesPostErrors, CreateProfileEndpointApiProfilesPostResponses, DeleteProfileEndpointApiProfilesProfileIdDeleteData, DeleteProfileEndpointApiProfilesProfileIdDeleteErrors, DeleteProfileEndpointApiProfilesProfileIdDeleteResponses, GenerateLabelPdfLabelsPdfPostData, GenerateLabelPdfLabelsPdfPostErrors, GenerateLabelPdfLabelsPdfPostResponses, GetConfigApiConfigGetData, GetConfigApiConfigGetResponses, GetConfigDefaultsApiConfigDefaultsGetData, GetConfigDefaultsApiConfigDefaultsGetErrors, GetConfigDefaultsApiConfigDefaultsGetResponses, GetConfigOptionsApiConfigOptionsGetData, GetConfigOptionsApiConfigOptionsGetErrors, GetConfigOptionsApiConfigOptionsGetResponses, GetQueueStatusApiQueueStatusGetData, GetQueueStatusApiQueueStatusGetErrors, GetQueueStatusApiQueueStatusGetResponses, GetStateApiStateGetData, GetStateApiStateGetResponses, PrintLabelPrintPostData, PrintLabelPrintPostErrors, PrintLabelPrintPostResponses, SaveConfigApiConfigPostData, SaveConfigApiConfigPostErrors, SaveConfigApiConfigPostResponses, SelectProfileEndpointApiProfilesProfileIdSelectPostData, SelectProfileEndpointApiProfilesProfileIdSelectPostErrors, SelectProfileEndpointApiProfilesProfileIdSelectPostResponses, UpdateProfileEndpointApiProfilesProfileIdPutData, UpdateProfileEndpointApiProfilesProfileIdPutErrors, UpdateProfileEndpointApiProfilesProfileIdPutResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -38,6 +38,15 @@ export const saveConfigApiConfigPost = <ThrowOnError extends boolean = false>(op
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+/**
+ * Get Config Defaults
+ */
+export const getConfigDefaultsApiConfigDefaultsGet = <ThrowOnError extends boolean = false>(options?: Options<GetConfigDefaultsApiConfigDefaultsGetData, ThrowOnError>) => (options?.client ?? client).get<GetConfigDefaultsApiConfigDefaultsGetResponses, GetConfigDefaultsApiConfigDefaultsGetErrors, ThrowOnError>({
+    responseType: 'json',
+    url: '/api/config/defaults',
+    ...options
 });
 
 /**

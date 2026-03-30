@@ -539,6 +539,56 @@
         "summary": "Save Config"
       }
     },
+    "/api/config/defaults": {
+      "get": {
+        "operationId": "get_config_defaults_api_config_defaults_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "queue_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Queue Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Get Config Defaults Api Config Defaults Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Config Defaults"
+      }
+    },
     "/api/config/options": {
       "get": {
         "operationId": "get_config_options_api_config_options_get",

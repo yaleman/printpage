@@ -351,6 +351,40 @@ export type SaveConfigApiConfigPostResponses = {
 
 export type SaveConfigApiConfigPostResponse = SaveConfigApiConfigPostResponses[keyof SaveConfigApiConfigPostResponses];
 
+export type GetConfigDefaultsApiConfigDefaultsGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Queue Name
+         */
+        queue_name?: string | null;
+    };
+    url: '/api/config/defaults';
+};
+
+export type GetConfigDefaultsApiConfigDefaultsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetConfigDefaultsApiConfigDefaultsGetError = GetConfigDefaultsApiConfigDefaultsGetErrors[keyof GetConfigDefaultsApiConfigDefaultsGetErrors];
+
+export type GetConfigDefaultsApiConfigDefaultsGetResponses = {
+    /**
+     * Response Get Config Defaults Api Config Defaults Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type GetConfigDefaultsApiConfigDefaultsGetResponse = GetConfigDefaultsApiConfigDefaultsGetResponses[keyof GetConfigDefaultsApiConfigDefaultsGetResponses];
+
 export type GetConfigOptionsApiConfigOptionsGetData = {
     body?: never;
     path?: never;

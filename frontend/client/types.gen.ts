@@ -309,6 +309,42 @@ export type SaveConfigApiConfigPostResponses = {
 
 export type SaveConfigApiConfigPostResponse = SaveConfigApiConfigPostResponses[keyof SaveConfigApiConfigPostResponses];
 
+export type GetConfigOptionsApiConfigOptionsGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Queue Name
+         */
+        queue_name?: string | null;
+    };
+    url: '/api/config/options';
+};
+
+export type GetConfigOptionsApiConfigOptionsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetConfigOptionsApiConfigOptionsGetError = GetConfigOptionsApiConfigOptionsGetErrors[keyof GetConfigOptionsApiConfigOptionsGetErrors];
+
+export type GetConfigOptionsApiConfigOptionsGetResponses = {
+    /**
+     * Response Get Config Options Api Config Options Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: {
+            [key: string]: string | Array<string> | null;
+        };
+    };
+};
+
+export type GetConfigOptionsApiConfigOptionsGetResponse = GetConfigOptionsApiConfigOptionsGetResponses[keyof GetConfigOptionsApiConfigOptionsGetResponses];
+
 export type CreateProfileEndpointApiProfilesPostData = {
     body: LabelProfileInput;
     path?: never;

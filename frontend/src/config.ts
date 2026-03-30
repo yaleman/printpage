@@ -1,8 +1,12 @@
 import {
 	getConfigApiConfigGet,
+	getConfigOptionsApiConfigOptionsGet,
 	saveConfigApiConfigPost,
 } from "../client/sdk.gen";
-import type { QueueState } from "../client/types.gen";
+import type {
+	GetConfigOptionsApiConfigOptionsGetResponse,
+	QueueState,
+} from "../client/types.gen";
 import { configureApiClient, getErrorMessage } from "./api";
 
 configureApiClient();
@@ -40,9 +44,13 @@ const stockContinuousInput = requireElement<HTMLInputElement>(
 const stockLengthGroup = requireElement<HTMLElement>("stock-length-group");
 const stockLengthInput = requireElement<HTMLInputElement>("stock_length_mm");
 const stockSummaryEl = requireElement<HTMLElement>("stock-summary");
+const queryOptionsButton = requireElement<HTMLButtonElement>(
+	"query-options-button",
+);
 const refreshButton = requireElement<HTMLButtonElement>("refresh-button");
 const statusEl = requireElement<HTMLElement>("status");
 const configStateEl = requireElement<HTMLElement>("config-state");
+const queueOptionsEl = requireElement<HTMLElement>("queue-options");
 
 function setStatus(message: string, isError = false): void {
 	statusEl.textContent = message;
@@ -90,6 +98,12 @@ function renderConfig(data: QueueState): void {
 	configStateEl.textContent = JSON.stringify(data, null, 2);
 }
 
+function renderQueueOptions(
+	data: GetConfigOptionsApiConfigOptionsGetResponse,
+): void {
+	queueOptionsEl.textContent = JSON.stringify(data, null, 2);
+}
+
 async function loadConfig(): Promise<void> {
 	setStatus("Loading queues...");
 
@@ -129,6 +143,24 @@ configForm.addEventListener("submit", async (event) => {
 
 refreshButton.addEventListener("click", () => {
 	void loadConfig();
+});
+
+queryOptionsButton.addEventListener("click", async () => {
+	setStatus(`Querying ${queueSelect.value} options...`);
+	queueOptionsEl.textContent = "Loading queue options...";
+
+	try {
+		const response = await getConfigOptionsApiConfigOptionsGet({
+			query: { queue_name: queueSelect.value },
+			throwOnError: true,
+		});
+		renderQueueOptions(response.data);
+		setStatus(`Queue options loaded for ${queueSelect.value}.`);
+	} catch (error) {
+		console.error(error);
+		queueOptionsEl.textContent = getErrorMessage(error);
+		setStatus(getErrorMessage(error), true);
+	}
 });
 
 stockWidthInput.addEventListener("input", updateStockSummary);

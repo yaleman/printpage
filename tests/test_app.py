@@ -187,8 +187,28 @@ def test_config_source_tracks_stock_controls() -> None:
 
     assert "stockWidthInput" in source
     assert "updateLengthVisibility" in source
+    assert "queryOptionsButton" in source
+    assert "getConfigOptionsApiConfigOptionsGet" in source
     assert "stock-summary" in template
     assert 'id="stock_length_mm"' in template
+    assert 'id="query-options-button"' in template
+    assert 'id="queue-options"' in template
+
+
+def test_docker_sources_seed_fake_cups_queue() -> None:
+    dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+    entrypoint = Path("entrypoint.sh").read_text(encoding="utf-8")
+    ppd = Path("printpage/testing/fake-brother-ql700.ppd").read_text(encoding="utf-8")
+
+    assert "cups-daemon" in dockerfile
+    assert "cups-bsd" in dockerfile
+    assert "sudo" in dockerfile
+    assert "FileDevice Yes" in dockerfile
+    assert "FAKE_QUEUE_NAME" in entrypoint
+    assert 'file:$FAKE_QUEUE_OUTPUT' in entrypoint
+    assert "fake-brother-ql700.ppd" in entrypoint
+    assert "*OpenUI *BrCutLabel/Cut Label: PickOne" in ppd
+    assert '*cupsFilter2: "application/pdf application/pdf 0 -"' in ppd
 
 
 def test_openapi_schema_hides_html_pages_and_types_api_responses(
@@ -335,6 +355,32 @@ def test_get_and_post_config_manage_queue_and_stock(
     assert saved_state["stock_is_continuous"] is True
     assert saved_state["stock_length_mm"] is None
     assert "profiles" in saved_state
+
+
+def test_get_config_options_returns_parsed_lpoptions(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        if cmd == ["lpoptions", "-p", "Brother_QL700", "-l"]:
+            return completed(
+                cmd,
+                stdout=(
+                    "PageSize/Media Size: *62x29 62x100\n"
+                    "BrPriority/Quality: *BrSpeed BrQuality\n"
+                ),
+            )
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(printer, "run_command", fake_run_command)
+
+    response = client.get("/api/config/options", params={"queue_name": "Brother_QL700"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["PageSize"]["default"] == "62x29"
+    assert payload["PageSize"]["choices"] == ["62x29", "62x100"]
+    assert payload["BrPriority"]["choices"] == ["BrSpeed", "BrQuality"]
 
 
 def test_labels_pdf_uses_authored_profile_dimensions_for_preview(

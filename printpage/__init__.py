@@ -2,12 +2,12 @@ import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .models import AppState, LabelProfileInput, PrintJobResult, QueueConfig, QueueState
-from .printer import get_available_queues
+from .printer import get_available_queues, get_queue_choices
 from .rendering import html_to_pdf_bytes, render_label_html, templates
 from .stock import resolve_preview_layout, resolve_print_layout
 from .state import (
@@ -105,6 +105,12 @@ def save_config(queue_config: QueueConfig) -> QueueState:
         queues=queues,
         default_queue=default_queue,
     )
+
+
+@app.get("/api/config/options")
+def get_config_options(queue_name: str | None = Query(default=None)) -> dict[str, dict[str, str | list[str] | None]]:
+    state = resolve_state()
+    return get_queue_choices(queue_name or state.queue_name)
 
 
 @app.post(

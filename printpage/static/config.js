@@ -3402,6 +3402,11 @@
       ...options.headers
     }
   });
+  var getConfigOptionsApiConfigOptionsGet = (options) => (options?.client ?? client).get({
+    responseType: "json",
+    url: "/api/config/options",
+    ...options
+  });
 
   // frontend/src/api.ts
   var isConfigured = false;
@@ -3457,9 +3462,13 @@
   var stockLengthGroup = requireElement("stock-length-group");
   var stockLengthInput = requireElement("stock_length_mm");
   var stockSummaryEl = requireElement("stock-summary");
+  var queryOptionsButton = requireElement(
+    "query-options-button"
+  );
   var refreshButton = requireElement("refresh-button");
   var statusEl = requireElement("status");
   var configStateEl = requireElement("config-state");
+  var queueOptionsEl = requireElement("queue-options");
   function setStatus(message, isError = false) {
     statusEl.textContent = message;
     statusEl.dataset.state = isError ? "error" : "idle";
@@ -3495,6 +3504,9 @@
     updateStockSummary();
     configStateEl.textContent = JSON.stringify(data, null, 2);
   }
+  function renderQueueOptions(data) {
+    queueOptionsEl.textContent = JSON.stringify(data, null, 2);
+  }
   async function loadConfig() {
     setStatus("Loading queues...");
     try {
@@ -3528,6 +3540,22 @@
   });
   refreshButton.addEventListener("click", () => {
     void loadConfig();
+  });
+  queryOptionsButton.addEventListener("click", async () => {
+    setStatus(`Querying ${queueSelect.value} options...`);
+    queueOptionsEl.textContent = "Loading queue options...";
+    try {
+      const response = await getConfigOptionsApiConfigOptionsGet({
+        query: { queue_name: queueSelect.value },
+        throwOnError: true
+      });
+      renderQueueOptions(response.data);
+      setStatus(`Queue options loaded for ${queueSelect.value}.`);
+    } catch (error) {
+      console.error(error);
+      queueOptionsEl.textContent = getErrorMessage(error);
+      setStatus(getErrorMessage(error), true);
+    }
   });
   stockWidthInput.addEventListener("input", updateStockSummary);
   stockLengthInput.addEventListener("input", updateStockSummary);

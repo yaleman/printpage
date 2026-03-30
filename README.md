@@ -57,6 +57,8 @@ docker run --rm -it -p 8000:8000 printpage:local
 
 This container is aimed at local app startup and PDF preview. Real printer administration still depends on CUPS access and `sudo /usr/sbin/lpadmin` in the runtime environment.
 
+The Docker image now also starts a local CUPS daemon and seeds a file-backed fake `Brother_QL700` queue for integration testing. Print jobs written inside the container are sent to `/tmp/printpage-jobs/label-output.pdf` by default.
+
 ## Printer Administration
 
 The app is designed to manage a local CUPS printer queue.

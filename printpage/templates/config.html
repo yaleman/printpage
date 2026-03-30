@@ -69,6 +69,9 @@
 
             <div class="grid gap-2">
               <button type="submit" class="nav-button nav-button--primary w-full">Save printer settings</button>
+              <button type="button" id="query-options-button" class="nav-button nav-button--secondary w-full">
+                Query queue options
+              </button>
               <button type="button" id="refresh-button" class="nav-button nav-button--secondary w-full">
                 Refresh queues
               </button>
@@ -83,6 +86,8 @@
         <section class="panel-card p-4">
           <h2 class="text-sm font-semibold tracking-[0.16em] uppercase text-stone-900">Current queue state</h2>
           <pre id="config-state" class="mt-4 overflow-auto rounded-xl bg-stone-950 p-4 font-mono text-sm leading-6 text-stone-100">Loading...</pre>
+          <h2 class="mt-4 text-sm font-semibold tracking-[0.16em] uppercase text-stone-900">Advertised queue options</h2>
+          <pre id="queue-options" class="mt-4 overflow-auto rounded-xl bg-stone-950 p-4 font-mono text-sm leading-6 text-stone-100">Query a queue to inspect `lpoptions -l` output.</pre>
         </section>
       </div>
     </main>

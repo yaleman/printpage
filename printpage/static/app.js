@@ -3638,6 +3638,7 @@
   };
   var PREVIEW_DEBOUNCE_MS = 250;
   var QUEUE_STATUS_POLL_MS = 1e4;
+  var COMPACT_LAYOUT_QUERY = "(max-width: 63.9375rem)";
   var STOCK_NOTICE_INFO_CLASSES = [
     "border-emerald-300",
     "bg-emerald-50",
@@ -3656,15 +3657,33 @@
     return element;
   }
   var profilePicker = requireElement("profile-picker");
+  var profileControls = requireElement("profile-controls");
   var newProfileButton = requireElement("new-profile-button");
   var saveButton = requireElement("save-button");
   var deleteButton = requireElement("delete-button");
   var previewButton = requireElement("preview-button");
   var printButton = requireElement("print-button");
+  var menuButton = requireElement("menu-button");
+  var closeDrawerButton = requireElement(
+    "close-drawer-button"
+  );
+  var drawerBackdrop = requireElement("drawer-backdrop");
+  var compactDrawer = requireElement("compact-drawer");
+  var desktopProfileSlot = requireElement("desktop-profile-slot");
+  var drawerProfileSlot = requireElement("drawer-profile-slot");
+  var queueStatusSlot = requireElement("queue-status-slot");
+  var drawerQueueStatusSlot = requireElement(
+    "drawer-queue-status-slot"
+  );
+  var deleteButtonSlot = requireElement("delete-button-slot");
+  var drawerDeleteSlot = requireElement("drawer-delete-slot");
   var generalStatusEl = requireElement("general-status");
   var previewStatusEl = requireElement("preview-status");
   var previewHintEl = requireElement("preview-hint");
   var previewFrame = requireElement("preview-frame");
+  var previewPanel = requireElement("preview-panel");
+  var previewSlotDesktop = requireElement("preview-slot-desktop");
+  var previewSlotCompact = requireElement("preview-slot-compact");
   var previewOverlay = requireElement("preview-overlay");
   var previewOverlayText = requireElement("preview-overlay-text");
   var previewMeta = requireElement("preview-meta");
@@ -3705,6 +3724,7 @@
   var tabPanels = Array.from(
     document.querySelectorAll("[data-tab-panel]")
   );
+  var compactMediaQuery = window.matchMedia(COMPACT_LAYOUT_QUERY);
   var currentPdfBlobUrl = null;
   var currentProfileId = null;
   var activeQueueName = "";
@@ -3718,6 +3738,51 @@
   var queueStatusPollTimer = null;
   var queueStatusRequestInFlight = false;
   var baselinePayloadSnapshot = JSON.stringify(DEFAULT_DRAFT);
+  var isCompactLayout = compactMediaQuery.matches;
+  var isDrawerOpen = false;
+  function moveElementToSlot(element, slot) {
+    if (element.parentElement !== slot) {
+      slot.appendChild(element);
+    }
+  }
+  function setDrawerState(nextOpen) {
+    const shouldOpen = isCompactLayout && nextOpen;
+    isDrawerOpen = shouldOpen;
+    compactDrawer.dataset.open = shouldOpen ? "true" : "false";
+    compactDrawer.setAttribute("aria-hidden", String(!shouldOpen));
+    drawerBackdrop.dataset.open = shouldOpen ? "true" : "false";
+    menuButton.setAttribute("aria-expanded", String(shouldOpen));
+    if (shouldOpen) {
+      closeDrawerButton.focus();
+      return;
+    }
+    if (compactDrawer.contains(document.activeElement)) {
+      menuButton.focus();
+    }
+  }
+  function closeDrawer() {
+    setDrawerState(false);
+  }
+  function syncDrawerNodes() {
+    moveElementToSlot(
+      profileControls,
+      isCompactLayout ? drawerProfileSlot : desktopProfileSlot
+    );
+    moveElementToSlot(
+      queueStatusIndicator,
+      isCompactLayout ? drawerQueueStatusSlot : queueStatusSlot
+    );
+    moveElementToSlot(
+      deleteButton,
+      isCompactLayout ? drawerDeleteSlot : deleteButtonSlot
+    );
+  }
+  function syncPreviewPlacement() {
+    moveElementToSlot(
+      previewPanel,
+      isCompactLayout ? previewSlotCompact : previewSlotDesktop
+    );
+  }
   function setQueueStatusIndicator(message, state, title = "") {
     queueStatusIndicator.dataset.state = state;
     queueStatusIndicator.title = title;
@@ -3786,7 +3851,10 @@
   }
   function updateTabState() {
     for (const button of tabButtons) {
-      const isActive = button.dataset.tabButton === currentTab;
+      const isPreviewTab = button.dataset.tabButton === "preview";
+      const isAvailable = !isPreviewTab || isCompactLayout;
+      button.hidden = !isAvailable;
+      const isActive = isAvailable && button.dataset.tabButton === currentTab;
       button.dataset.state = isActive ? "on" : "off";
       button.setAttribute("aria-selected", String(isActive));
     }
@@ -3794,6 +3862,25 @@
       const isActive = panel.dataset.tabPanel === currentTab;
       panel.classList.toggle("hidden", !isActive);
     }
+  }
+  function syncResponsiveLayout() {
+    const nextCompactLayout = compactMediaQuery.matches;
+    if (isCompactLayout === nextCompactLayout && previewPanel.parentElement) {
+      syncDrawerNodes();
+      syncPreviewPlacement();
+      updateTabState();
+      return;
+    }
+    isCompactLayout = nextCompactLayout;
+    if (!isCompactLayout && currentTab === "preview") {
+      currentTab = "profile";
+    }
+    if (!isCompactLayout) {
+      closeDrawer();
+    }
+    syncDrawerNodes();
+    syncPreviewPlacement();
+    updateTabState();
   }
   function setToggleState(button, isActive) {
     button.dataset.state = isActive ? "on" : "off";
@@ -4246,11 +4333,26 @@
       updateTabState();
     });
   }
-  newProfileButton.addEventListener("click", startNewProfile);
+  menuButton.addEventListener("click", () => {
+    setDrawerState(!isDrawerOpen);
+  });
+  closeDrawerButton.addEventListener("click", closeDrawer);
+  drawerBackdrop.addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeDrawer();
+    }
+  });
+  compactMediaQuery.addEventListener("change", syncResponsiveLayout);
+  newProfileButton.addEventListener("click", () => {
+    closeDrawer();
+    startNewProfile();
+  });
   saveButton.addEventListener("click", () => {
     void saveProfile();
   });
   deleteButton.addEventListener("click", () => {
+    closeDrawer();
     void deleteProfile();
   });
   previewButton.addEventListener("click", () => {
@@ -4267,6 +4369,7 @@
   });
   profilePicker.addEventListener("change", () => {
     if (profilePicker.value) {
+      closeDrawer();
       void selectProfile(profilePicker.value);
     }
   });
@@ -4313,6 +4416,7 @@
   bindSingleChoiceButtons("[data-row-alignment]", "alignment", "rowAlignment");
   bindToggleButton(rowBoldButton, "bold");
   bindToggleButton(rowItalicButton, "italic");
+  syncResponsiveLayout();
   updateTabState();
   setStatus("Loading label profiles...");
   setPreviewStatus("Waiting for preview...");

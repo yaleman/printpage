@@ -90,6 +90,84 @@
     @apply rounded-xl border border-stone-200 bg-white shadow-sm;
   }
 
+  .app-header {
+    @apply flex shrink-0 items-center gap-3 border-b border-stone-200 bg-stone-50 px-4 py-2;
+  }
+
+  .app-header__brand {
+    @apply flex min-w-0 items-center gap-3;
+  }
+
+  .app-header__profile-slot {
+    @apply min-w-0 flex-1;
+  }
+
+  .app-header__actions {
+    @apply ml-auto flex items-center gap-2;
+  }
+
+  .app-header__desktop-only {
+    @apply flex items-center;
+  }
+
+  .app-header__menu-button {
+    @apply hidden h-9 w-9 px-0;
+  }
+
+  .app-header__settings-label--compact {
+    @apply hidden;
+  }
+
+  .profile-controls {
+    @apply flex min-w-0 items-center gap-2;
+  }
+
+  .profile-controls__picker {
+    @apply w-56;
+  }
+
+  .editor-layout {
+    @apply grid h-full min-h-0 gap-3;
+    grid-template-columns: 35rem minmax(0, 1fr);
+  }
+
+  .preview-slot-desktop {
+    @apply min-h-0;
+  }
+
+  .drawer-backdrop {
+    @apply pointer-events-none fixed inset-0 z-30 bg-stone-950/30 opacity-0 transition;
+  }
+
+  .drawer-backdrop[data-open="true"] {
+    @apply pointer-events-auto opacity-100;
+  }
+
+  .nav-drawer {
+    @apply fixed inset-y-0 right-0 z-40 flex w-full max-w-sm flex-col border-l border-stone-200 bg-white shadow-xl transition;
+    transform: translateX(100%);
+  }
+
+  .nav-drawer[data-open="true"] {
+    transform: translateX(0);
+  }
+
+  .nav-drawer__header {
+    @apply flex items-center justify-between border-b border-stone-200 px-4 py-3;
+  }
+
+  .nav-drawer__body {
+    @apply flex flex-1 flex-col gap-4 overflow-auto p-4;
+  }
+
+  .nav-drawer__section {
+    @apply flex flex-col gap-3;
+  }
+
+  .editor-tab-button--preview {
+    @apply hidden;
+  }
+
   .json-panel-heading {
     @apply flex items-center justify-between gap-4;
   }
@@ -116,5 +194,66 @@
 
   .json-null {
     @apply text-fuchsia-300;
+  }
+}
+
+@media (width < 64rem) {
+  .app-header {
+    @apply gap-2 px-3;
+  }
+
+  .app-header__profile-slot {
+    @apply hidden;
+  }
+
+  .app-header__menu-button {
+    @apply inline-flex;
+  }
+
+  .app-header__desktop-only {
+    @apply hidden;
+  }
+
+  .app-header__actions .nav-button {
+    @apply px-2.5 text-xs;
+  }
+
+  .app-header__settings-label--desktop {
+    @apply hidden;
+  }
+
+  .app-header__settings-label--compact {
+    @apply inline;
+  }
+
+  .profile-controls {
+    @apply flex-col items-stretch;
+  }
+
+  .profile-controls__picker {
+    @apply w-full;
+  }
+
+  .editor-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .preview-slot-desktop {
+    @apply hidden;
+  }
+
+  .editor-tab-button--preview {
+    @apply inline-flex;
+  }
+}
+
+@media (width >= 64rem) {
+  .app-header__profile-slot {
+    @apply block;
+  }
+
+  .drawer-backdrop,
+  .nav-drawer {
+    @apply hidden;
   }
 }

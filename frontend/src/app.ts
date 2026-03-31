@@ -89,6 +89,7 @@ const DEFAULT_ACTIVE_STOCK: ActiveStock = {
 
 const PREVIEW_DEBOUNCE_MS = 250;
 const QUEUE_STATUS_POLL_MS = 10_000;
+const COMPACT_LAYOUT_QUERY = "(max-width: 63.9375rem)";
 const STOCK_NOTICE_INFO_CLASSES = [
 	"border-emerald-300",
 	"bg-emerald-50",
@@ -110,16 +111,34 @@ function requireElement<T extends HTMLElement>(id: string): T {
 }
 
 const profilePicker = requireElement<HTMLSelectElement>("profile-picker");
+const profileControls = requireElement<HTMLElement>("profile-controls");
 const newProfileButton =
 	requireElement<HTMLButtonElement>("new-profile-button");
 const saveButton = requireElement<HTMLButtonElement>("save-button");
 const deleteButton = requireElement<HTMLButtonElement>("delete-button");
 const previewButton = requireElement<HTMLButtonElement>("preview-button");
 const printButton = requireElement<HTMLButtonElement>("print-button");
+const menuButton = requireElement<HTMLButtonElement>("menu-button");
+const closeDrawerButton = requireElement<HTMLButtonElement>(
+	"close-drawer-button",
+);
+const drawerBackdrop = requireElement<HTMLElement>("drawer-backdrop");
+const compactDrawer = requireElement<HTMLElement>("compact-drawer");
+const desktopProfileSlot = requireElement<HTMLElement>("desktop-profile-slot");
+const drawerProfileSlot = requireElement<HTMLElement>("drawer-profile-slot");
+const queueStatusSlot = requireElement<HTMLElement>("queue-status-slot");
+const drawerQueueStatusSlot = requireElement<HTMLElement>(
+	"drawer-queue-status-slot",
+);
+const deleteButtonSlot = requireElement<HTMLElement>("delete-button-slot");
+const drawerDeleteSlot = requireElement<HTMLElement>("drawer-delete-slot");
 const generalStatusEl = requireElement<HTMLElement>("general-status");
 const previewStatusEl = requireElement<HTMLElement>("preview-status");
 const previewHintEl = requireElement<HTMLElement>("preview-hint");
 const previewFrame = requireElement<HTMLIFrameElement>("preview-frame");
+const previewPanel = requireElement<HTMLElement>("preview-panel");
+const previewSlotDesktop = requireElement<HTMLElement>("preview-slot-desktop");
+const previewSlotCompact = requireElement<HTMLElement>("preview-slot-compact");
 const previewOverlay = requireElement<HTMLElement>("preview-overlay");
 const previewOverlayText = requireElement<HTMLElement>("preview-overlay-text");
 const previewMeta = requireElement<HTMLElement>("preview-meta");
@@ -160,6 +179,7 @@ const tabButtons = Array.from(
 const tabPanels = Array.from(
 	document.querySelectorAll<HTMLElement>("[data-tab-panel]"),
 );
+const compactMediaQuery = window.matchMedia(COMPACT_LAYOUT_QUERY);
 
 let currentPdfBlobUrl: string | null = null;
 let currentProfileId: string | null = null;
@@ -174,6 +194,58 @@ let previewController: AbortController | null = null;
 let queueStatusPollTimer: number | null = null;
 let queueStatusRequestInFlight = false;
 let baselinePayloadSnapshot = JSON.stringify(DEFAULT_DRAFT);
+let isCompactLayout = compactMediaQuery.matches;
+let isDrawerOpen = false;
+
+function moveElementToSlot(element: HTMLElement, slot: HTMLElement): void {
+	if (element.parentElement !== slot) {
+		slot.appendChild(element);
+	}
+}
+
+function setDrawerState(nextOpen: boolean): void {
+	const shouldOpen = isCompactLayout && nextOpen;
+	isDrawerOpen = shouldOpen;
+	compactDrawer.dataset.open = shouldOpen ? "true" : "false";
+	compactDrawer.setAttribute("aria-hidden", String(!shouldOpen));
+	drawerBackdrop.dataset.open = shouldOpen ? "true" : "false";
+	menuButton.setAttribute("aria-expanded", String(shouldOpen));
+
+	if (shouldOpen) {
+		closeDrawerButton.focus();
+		return;
+	}
+
+	if (compactDrawer.contains(document.activeElement)) {
+		menuButton.focus();
+	}
+}
+
+function closeDrawer(): void {
+	setDrawerState(false);
+}
+
+function syncDrawerNodes(): void {
+	moveElementToSlot(
+		profileControls,
+		isCompactLayout ? drawerProfileSlot : desktopProfileSlot,
+	);
+	moveElementToSlot(
+		queueStatusIndicator,
+		isCompactLayout ? drawerQueueStatusSlot : queueStatusSlot,
+	);
+	moveElementToSlot(
+		deleteButton,
+		isCompactLayout ? drawerDeleteSlot : deleteButtonSlot,
+	);
+}
+
+function syncPreviewPlacement(): void {
+	moveElementToSlot(
+		previewPanel,
+		isCompactLayout ? previewSlotCompact : previewSlotDesktop,
+	);
+}
 
 function setQueueStatusIndicator(
 	message: string,
@@ -270,7 +342,10 @@ function setPreviewOverlay(
 
 function updateTabState(): void {
 	for (const button of tabButtons) {
-		const isActive = button.dataset.tabButton === currentTab;
+		const isPreviewTab = button.dataset.tabButton === "preview";
+		const isAvailable = !isPreviewTab || isCompactLayout;
+		button.hidden = !isAvailable;
+		const isActive = isAvailable && button.dataset.tabButton === currentTab;
 		button.dataset.state = isActive ? "on" : "off";
 		button.setAttribute("aria-selected", String(isActive));
 	}
@@ -279,6 +354,28 @@ function updateTabState(): void {
 		const isActive = panel.dataset.tabPanel === currentTab;
 		panel.classList.toggle("hidden", !isActive);
 	}
+}
+
+function syncResponsiveLayout(): void {
+	const nextCompactLayout = compactMediaQuery.matches;
+	if (isCompactLayout === nextCompactLayout && previewPanel.parentElement) {
+		syncDrawerNodes();
+		syncPreviewPlacement();
+		updateTabState();
+		return;
+	}
+
+	isCompactLayout = nextCompactLayout;
+	if (!isCompactLayout && currentTab === "preview") {
+		currentTab = "profile";
+	}
+	if (!isCompactLayout) {
+		closeDrawer();
+	}
+
+	syncDrawerNodes();
+	syncPreviewPlacement();
+	updateTabState();
 }
 
 function setToggleState(button: HTMLButtonElement, isActive: boolean): void {
@@ -864,11 +961,27 @@ for (const button of tabButtons) {
 	});
 }
 
-newProfileButton.addEventListener("click", startNewProfile);
+menuButton.addEventListener("click", () => {
+	setDrawerState(!isDrawerOpen);
+});
+closeDrawerButton.addEventListener("click", closeDrawer);
+drawerBackdrop.addEventListener("click", closeDrawer);
+document.addEventListener("keydown", (event) => {
+	if (event.key === "Escape") {
+		closeDrawer();
+	}
+});
+compactMediaQuery.addEventListener("change", syncResponsiveLayout);
+
+newProfileButton.addEventListener("click", () => {
+	closeDrawer();
+	startNewProfile();
+});
 saveButton.addEventListener("click", () => {
 	void saveProfile();
 });
 deleteButton.addEventListener("click", () => {
+	closeDrawer();
 	void deleteProfile();
 });
 previewButton.addEventListener("click", () => {
@@ -885,6 +998,7 @@ setHeightToPrinterButton.addEventListener("click", () => {
 });
 profilePicker.addEventListener("change", () => {
 	if (profilePicker.value) {
+		closeDrawer();
 		void selectProfile(profilePicker.value);
 	}
 });
@@ -939,6 +1053,7 @@ bindSingleChoiceButtons("[data-row-alignment]", "alignment", "rowAlignment");
 bindToggleButton(rowBoldButton, "bold");
 bindToggleButton(rowItalicButton, "italic");
 
+syncResponsiveLayout();
 updateTabState();
 setStatus("Loading label profiles...");
 setPreviewStatus("Waiting for preview...");

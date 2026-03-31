@@ -10,45 +10,97 @@
   </head>
   <body class="h-screen overflow-hidden">
     <div class="flex h-screen flex-col">
-      <header class="flex h-14 shrink-0 items-center justify-between border-b border-stone-200 bg-stone-50 px-4">
-        <div class="flex min-w-0 items-center gap-3">
-          <h1 class="app-heading-2">Label editor</h1>
-          <label class="sr-only" for="profile-picker">Label profiles</label>
-          <select
-            id="profile-picker"
-            aria-label="Label profiles"
-            class="app-input w-56 bg-white"></select>
-          <button type="button" id="new-profile-button" class="nav-button nav-button--secondary">
-            New
+      <header class="app-header">
+        <div class="app-header__brand">
+          <button
+            type="button"
+            id="menu-button"
+            aria-controls="compact-drawer"
+            aria-expanded="false"
+            aria-label="Open menu"
+            class="nav-button nav-button--secondary app-header__menu-button">
+            <svg aria-hidden="true" viewBox="0 0 16 16" class="h-4 w-4 fill-none stroke-current" stroke-width="1.5" stroke-linecap="round">
+              <path d="M2.5 4h11"></path>
+              <path d="M2.5 8h11"></path>
+              <path d="M2.5 12h11"></path>
+            </svg>
           </button>
+          <h1 class="app-heading-2">Label editor</h1>
         </div>
-        <div class="flex items-center gap-2">
-          <div
-            id="queue-status-indicator"
-            aria-live="polite"
-            data-state="loading"
-            class="queue-indicator">
-            <span class="text-[10px] font-semibold">Queue</span>
-            <span id="queue-status-text" class="queue-indicator__count">Checking...</span>
+
+        <div id="desktop-profile-slot" class="app-header__profile-slot">
+          <div id="profile-controls" class="profile-controls">
+            <label class="sr-only" for="profile-picker">Label profiles</label>
+            <select
+              id="profile-picker"
+              aria-label="Label profiles"
+              class="app-input profile-controls__picker bg-white"></select>
+            <button type="button" id="new-profile-button" class="nav-button nav-button--secondary">
+              New
+            </button>
+          </div>
+        </div>
+
+        <div class="app-header__actions">
+          <div id="queue-status-slot" class="app-header__desktop-only">
+            <div
+              id="queue-status-indicator"
+              aria-live="polite"
+              data-state="loading"
+              class="queue-indicator">
+              <span class="text-[10px] font-semibold">Queue</span>
+              <span id="queue-status-text" class="queue-indicator__count">Checking...</span>
+            </div>
           </div>
           <button type="button" id="save-button" disabled data-state="clean" class="nav-button nav-button--secondary">
             Save
           </button>
-          <button type="button" id="delete-button" class="nav-button nav-button--secondary">
-            Delete
-          </button>
-          <button type="button" id="preview-button" class="nav-button nav-button--secondary">
+          <div id="delete-button-slot" class="app-header__desktop-only">
+            <button type="button" id="delete-button" class="nav-button nav-button--secondary">
+              Delete
+            </button>
+          </div>
+          <button type="button" id="preview-button" class="nav-button nav-button--secondary app-header__desktop-only">
             Preview
           </button>
           <button type="button" id="print-button" class="nav-button nav-button--primary">
             Print
           </button>
-          <a href="/config" class="nav-button nav-button--secondary">Printer settings</a>
+          <a href="/config" class="nav-button nav-button--secondary app-header__settings-link">
+            <span class="app-header__settings-label app-header__settings-label--desktop">Printer settings</span>
+            <span class="app-header__settings-label app-header__settings-label--compact">Settings</span>
+          </a>
         </div>
       </header>
 
+      <div id="drawer-backdrop" class="drawer-backdrop" data-open="false"></div>
+      <aside
+        id="compact-drawer"
+        data-open="false"
+        aria-hidden="true"
+        aria-labelledby="compact-drawer-title"
+        class="nav-drawer"
+        role="dialog"
+        aria-modal="true">
+        <div class="nav-drawer__header">
+          <h2 id="compact-drawer-title" class="app-heading-2">Menu</h2>
+          <button type="button" id="close-drawer-button" class="nav-button nav-button--secondary">
+            Close
+          </button>
+        </div>
+        <div class="nav-drawer__body">
+          <section class="nav-drawer__section">
+            <div id="drawer-profile-slot"></div>
+          </section>
+          <section class="nav-drawer__section">
+            <div id="drawer-delete-slot"></div>
+            <div id="drawer-queue-status-slot"></div>
+          </section>
+        </div>
+      </aside>
+
       <main class="min-h-0 flex-1 overflow-hidden p-3">
-        <div class="grid h-full min-h-0 grid-cols-[35rem_minmax(0,1fr)] gap-3">
+        <div class="editor-layout">
           <section class="panel-card flex min-h-0 flex-col overflow-hidden">
             <div class="flex items-center justify-end border-b border-stone-200 px-4 py-3">
               <div class="flex gap-1 rounded-lg border border-stone-200 bg-stone-100 p-1">
@@ -67,6 +119,14 @@
                   aria-selected="false"
                   class="rounded-md px-3 py-1.5 text-xs font-semibold transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-white data-[state=on]:bg-white data-[state=on]:text-stone-900">
                   Content
+                </button>
+                <button
+                  type="button"
+                  data-tab-button="preview"
+                  data-state="off"
+                  aria-selected="false"
+                  class="editor-tab-button editor-tab-button--preview rounded-md px-3 py-1.5 text-xs font-semibold transition data-[state=off]:text-stone-500 data-[state=off]:hover:bg-white data-[state=on]:bg-white data-[state=on]:text-stone-900">
+                  Preview
                 </button>
               </div>
             </div>
@@ -359,6 +419,10 @@
                   </section>
                 </div>
               </div>
+
+              <div data-tab-panel="preview" class="hidden h-full min-h-0 flex-col overflow-hidden p-3">
+                <div id="preview-slot-compact" class="flex h-full min-h-0 flex-1 flex-col"></div>
+              </div>
             </div>
 
             <div class="flex items-center justify-between border-t border-stone-200 bg-stone-50 px-4 py-3 text-xs">
@@ -368,30 +432,32 @@
             </div>
           </section>
 
-          <section class="panel-card flex min-h-0 flex-col overflow-hidden">
-            <div class="flex items-center justify-between border-b border-stone-200 px-4 py-3">
-              <div>
-                <h2 class="app-heading-2">Preview</h2>
-                <p id="preview-meta" class="mt-1 text-xs text-stone-500">62 x 29 mm / Qty 1</p>
+          <div id="preview-slot-desktop" class="preview-slot-desktop">
+            <section id="preview-panel" class="panel-card flex h-full min-h-0 w-full flex-col overflow-hidden">
+              <div class="flex items-center justify-between border-b border-stone-200 px-4 py-3">
+                <div>
+                  <h2 class="app-heading-2">Preview</h2>
+                  <p id="preview-meta" class="mt-1 text-xs text-stone-500">62 x 29 mm / Qty 1</p>
+                </div>
+                <div class="text-right">
+                  <p id="preview-status" data-state="idle" class="text-xs text-stone-500 data-[state=error]:text-red-600">
+                    Waiting for preview...
+                  </p>
+                  <p id="preview-hint" class="mt-1 text-[11px] text-stone-400">
+                    Auto-preview
+                  </p>
+                </div>
               </div>
-              <div class="text-right">
-                <p id="preview-status" data-state="idle" class="text-xs text-stone-500 data-[state=error]:text-red-600">
-                  Waiting for preview...
-                </p>
-                <p id="preview-hint" class="mt-1 text-[11px] text-stone-400">
-                  Auto-preview
-                </p>
-              </div>
-            </div>
 
-            <div class="relative min-h-0 flex-1 bg-white">
-              <iframe id="preview-frame" title="PDF preview" class="invisible h-full w-full bg-white"></iframe>
-              <div id="preview-overlay" data-state="idle"
-                class="absolute inset-0 flex items-center justify-center bg-white/92 px-12 text-center text-sm text-stone-500 data-[state=error]:text-red-600">
-                <p id="preview-overlay-text">Loading profile...</p>
+              <div class="relative min-h-0 flex-1 bg-white">
+                <iframe id="preview-frame" title="PDF preview" class="invisible h-full w-full bg-white"></iframe>
+                <div id="preview-overlay" data-state="idle"
+                  class="absolute inset-0 flex items-center justify-center bg-white/92 px-12 text-center text-sm text-stone-500 data-[state=error]:text-red-600">
+                  <p id="preview-overlay-text">Loading profile...</p>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
         </div>
       </main>
     </div>

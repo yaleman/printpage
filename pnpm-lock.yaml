@@ -9,15 +9,15 @@ importers:
   .:
     dependencies:
       axios:
-        specifier: ^1.14.0
-        version: 1.14.0
+        specifier: ^1.15.0
+        version: 1.15.0
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.4.9
         version: 2.4.9
       '@hey-api/client-axios':
         specifier: ^0.9.1
-        version: 0.9.1(@hey-api/openapi-ts@0.94.5(typescript@6.0.2))(axios@1.14.0)
+        version: 0.9.1(@hey-api/openapi-ts@0.94.5(typescript@6.0.2))(axios@1.15.0)
       '@hey-api/openapi-ts':
         specifier: ^0.94.5
         version: 0.94.5(typescript@6.0.2)
@@ -480,8 +480,8 @@ packages:
   asynckit@0.4.0:
     resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}
 
-  axios@1.14.0:
-    resolution: {integrity: sha512-3Y8yrqLSwjuzpXuZ0oIYZ/XGgLwUIBU3uLvbcpb0pidD9ctpShJd43KSlEEkVQg6DS0G9NKyzOvBfUtDKEyHvQ==}
+  axios@1.15.0:
+    resolution: {integrity: sha512-wWyJDlAatxk30ZJer+GeCWS209sA42X+N5jU2jy6oHTp7ufw8uzUTVFBX9+wTfAlhiJXGS0Bq7X6efruWjuK9Q==}
 
   bundle-name@4.1.0:
     resolution: {integrity: sha512-tjwM5exMg6BGRI+kNmTntNsvdZS1X8BFYS6tnJ2hdH0kVxM6/eVZ2xy+FqStSWvYmtfFMDLIxurorHwDKfDz5Q==}
@@ -987,10 +987,10 @@ snapshots:
   '@esbuild/win32-x64@0.27.4':
     optional: true
 
-  '@hey-api/client-axios@0.9.1(@hey-api/openapi-ts@0.94.5(typescript@6.0.2))(axios@1.14.0)':
+  '@hey-api/client-axios@0.9.1(@hey-api/openapi-ts@0.94.5(typescript@6.0.2))(axios@1.15.0)':
     dependencies:
       '@hey-api/openapi-ts': 0.94.5(typescript@6.0.2)
-      axios: 1.14.0
+      axios: 1.15.0
 
   '@hey-api/codegen-core@0.7.4':
     dependencies:
@@ -1201,7 +1201,7 @@ snapshots:
 
   asynckit@0.4.0: {}
 
-  axios@1.14.0:
+  axios@1.15.0:
     dependencies:
       follow-redirects: 1.15.11
       form-data: 4.0.5

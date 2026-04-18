@@ -19,6 +19,7 @@ run = [
   "pnpm build:frontend",
   "pnpm biome:check",
   "pnpm test:frontend",
+  "pnpm test:playwright",
   "pnpm typecheck:frontend",
 ]
 

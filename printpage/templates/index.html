@@ -66,10 +66,12 @@
           <button type="button" id="print-button" class="nav-button nav-button--primary">
             Print
           </button>
-          <a href="/config" class="nav-button nav-button--secondary app-header__settings-link">
-            <span class="app-header__settings-label app-header__settings-label--desktop">Printer settings</span>
-            <span class="app-header__settings-label app-header__settings-label--compact">Settings</span>
-          </a>
+          <div id="settings-link-slot" class="app-header__desktop-only">
+            <a href="/config" id="settings-link" class="nav-button nav-button--secondary app-header__settings-link">
+              <span class="app-header__settings-label app-header__settings-label--desktop">Printer settings</span>
+              <span class="app-header__settings-label app-header__settings-label--compact">Settings</span>
+            </a>
+          </div>
         </div>
       </header>
 
@@ -95,6 +97,7 @@
           <section class="nav-drawer__section">
             <div id="drawer-delete-slot"></div>
             <div id="drawer-queue-status-slot"></div>
+            <div id="drawer-settings-slot"></div>
           </section>
         </div>
       </aside>
@@ -146,9 +149,9 @@
                   </section>
 
                   <section class="rounded-xl border border-stone-200 bg-stone-50 p-3">
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <label>
-                        <span class="mb-2 flex items-center justify-between gap-2">
+                        <span class="mb-2 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <span class="app-label">Width (mm)</span>
                           <button type="button" id="set-width-to-printer-button" class="nav-button nav-button--secondary">
                             🖨️ Width
@@ -165,7 +168,7 @@
                           class="app-input">
                       </label>
                       <label>
-                        <span class="mb-2 flex items-center justify-between gap-2">
+                        <span class="mb-2 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <span id="secondary-dimension-label" class="app-label">Height (mm)</span>
                           <button type="button" id="set-height-to-printer-button" class="nav-button nav-button--secondary">
                             🖨️ Width
@@ -209,7 +212,7 @@
 
                   <section class="rounded-xl border border-stone-200 bg-stone-50 p-3">
 
-                    <div class="grid grid-cols-3 gap-3">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       <label>
                         <span class="app-label">Quality</span>
                         <select id="quality" name="quality" data-autopreview class="app-input pr-8">
@@ -262,7 +265,7 @@
                       <input id="border_enabled" name="border_enabled" type="checkbox" class="hidden">
                     </div>
 
-                    <div id="border-fields" class="grid grid-cols-3 gap-3 transition">
+                    <div id="border-fields" class="grid grid-cols-1 gap-3 transition sm:grid-cols-2 lg:grid-cols-3">
                       <label>
                         <span class="app-label">Thickness (mm)</span>
                         <input
@@ -308,7 +311,7 @@
               </div>
 
               <div data-tab-panel="content" class="hidden h-full overflow-hidden p-3">
-                <div class="grid h-full min-h-0 grid-cols-[13rem_minmax(0,1fr)] gap-3">
+                <div class="grid h-full min-h-0 grid-cols-1 gap-3 lg:grid-cols-[13rem_minmax(0,1fr)]">
                   <aside class="flex min-h-0 flex-col rounded-xl border border-stone-200 bg-stone-50">
                     <div class="flex items-center justify-between border-b border-stone-200 px-3 py-2">
                       <div>

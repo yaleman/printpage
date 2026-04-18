@@ -3677,6 +3677,9 @@
   );
   var deleteButtonSlot = requireElement("delete-button-slot");
   var drawerDeleteSlot = requireElement("drawer-delete-slot");
+  var settingsLink = requireElement("settings-link");
+  var settingsLinkSlot = requireElement("settings-link-slot");
+  var drawerSettingsSlot = requireElement("drawer-settings-slot");
   var generalStatusEl = requireElement("general-status");
   var previewStatusEl = requireElement("preview-status");
   var previewHintEl = requireElement("preview-hint");
@@ -3775,6 +3778,10 @@
     moveElementToSlot(
       deleteButton,
       isCompactLayout ? drawerDeleteSlot : deleteButtonSlot
+    );
+    moveElementToSlot(
+      settingsLink,
+      isCompactLayout ? drawerSettingsSlot : settingsLinkSlot
     );
   }
   function syncPreviewPlacement() {

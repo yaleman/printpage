@@ -40,6 +40,21 @@ Install dependencies with `uv`, then run the app with Uvicorn:
 uv run uvicorn printpage:app --host 0.0.0.0 --port 8000
 ```
 
+## Browser Tests
+
+Install the browser once before running the Playwright regression:
+
+```sh
+pnpm exec playwright install chromium
+```
+
+Then run the browser test directly or through the normal check pipeline:
+
+```sh
+pnpm test:playwright
+mise check
+```
+
 ## Running With Docker
 
 Build and run the local container with `mise`:

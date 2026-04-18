@@ -89,7 +89,7 @@ const DEFAULT_ACTIVE_STOCK: ActiveStock = {
 
 const PREVIEW_DEBOUNCE_MS = 250;
 const QUEUE_STATUS_POLL_MS = 10_000;
-const COMPACT_LAYOUT_QUERY = "(max-width: 63.9375rem)";
+const COMPACT_LAYOUT_QUERY = "(width < 64rem)";
 const STOCK_NOTICE_INFO_CLASSES = [
 	"border-emerald-300",
 	"bg-emerald-50",
@@ -958,6 +958,9 @@ for (const button of tabButtons) {
 	button.addEventListener("click", () => {
 		currentTab = button.dataset.tabButton ?? "profile";
 		updateTabState();
+		if (isCompactLayout && currentTab === "preview") {
+			void previewPdf({ immediate: true });
+		}
 	});
 }
 

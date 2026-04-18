@@ -3638,7 +3638,7 @@
   };
   var PREVIEW_DEBOUNCE_MS = 250;
   var QUEUE_STATUS_POLL_MS = 1e4;
-  var COMPACT_LAYOUT_QUERY = "(max-width: 63.9375rem)";
+  var COMPACT_LAYOUT_QUERY = "(width < 64rem)";
   var STOCK_NOTICE_INFO_CLASSES = [
     "border-emerald-300",
     "bg-emerald-50",
@@ -4331,6 +4331,9 @@
     button.addEventListener("click", () => {
       currentTab = button.dataset.tabButton ?? "profile";
       updateTabState();
+      if (isCompactLayout && currentTab === "preview") {
+        void previewPdf({ immediate: true });
+      }
     });
   }
   menuButton.addEventListener("click", () => {

@@ -63,6 +63,12 @@ def fake_lpstat_output() -> str:
     return "printer QL700 is idle.\nsystem default destination: QL700\n"
 
 
+def assert_neutral_print_options(cmd: list[str]) -> None:
+    assert "fit-to-page=false" in cmd
+    assert "scaling=100" in cmd
+    assert "number-up=1" in cmd
+
+
 def test_parse_lpstat_destinations() -> None:
     output = """printer QL700 is idle. enabled since Sun Mar 29 20:40:03 2026
 printer BOGPRINTER is idle. enabled since Thu Sep 18 15:38:31 2025
@@ -795,12 +801,14 @@ def test_print_continuous_stock_prefers_full_roll_width_for_transposed_profile(
         )
     )
     captured: dict[str, str] = {}
+    commands: list[list[str]] = []
 
     def fake_html_to_pdf_bytes(html: str) -> bytes:
         captured["html"] = html
         return b"%PDF-test"
 
     def fake_run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+        commands.append(cmd)
         if cmd == ["lpoptions", "-p", "QL700", "-l"]:
             return completed(
                 cmd,
@@ -829,6 +837,13 @@ def test_print_continuous_stock_prefers_full_roll_width_for_transposed_profile(
     assert "width: 40mm;" in captured["html"]
     assert "height: 61mm;" in captured["html"]
     assert "label--rotated" not in captured["html"]
+    assert "PageSize=62x40" in commands[1]
+    assert "media=62x40" in commands[1]
+    assert "orientation-requested=4" in commands[1]
+    assert_neutral_print_options(commands[1])
+    assert "media=62x40" in commands[2]
+    assert "orientation-requested=4" in commands[2]
+    assert_neutral_print_options(commands[2])
 
 
 def test_print_continuous_stock_trims_exact_roll_width_by_one_mm(
@@ -880,8 +895,13 @@ def test_print_continuous_stock_trims_exact_roll_width_by_one_mm(
     assert "size: 61mm 40mm;" in captured["html"]
     assert "width: 61mm;" in captured["html"]
     assert "height: 40mm;" in captured["html"]
-    assert "PageSize=62X1" in commands[1]
-    assert "media=62X1" in commands[1]
+    assert "PageSize=62x40" in commands[1]
+    assert "media=62x40" in commands[1]
+    assert "orientation-requested=3" in commands[1]
+    assert_neutral_print_options(commands[1])
+    assert "media=62x40" in commands[2]
+    assert "orientation-requested=3" in commands[2]
+    assert_neutral_print_options(commands[2])
 
 
 def test_print_uses_explicit_landscape_orientation_without_auto_rotation(
@@ -1049,6 +1069,12 @@ def test_print_applies_profile_then_submits_lp_job(
         "-o",
         "orientation-requested=3",
         "-o",
+        "fit-to-page=false",
+        "-o",
+        "scaling=100",
+        "-o",
+        "number-up=1",
+        "-o",
         "BrCutLabel=1",
         "-o",
         "BrCutAtEnd=ON",
@@ -1062,6 +1088,14 @@ def test_print_applies_profile_then_submits_lp_job(
         "media=62x29",
         "-o",
         "orientation-requested=3",
+        "-o",
+        "fit-to-page=false",
+        "-o",
+        "scaling=100",
+        "-o",
+        "number-up=1",
+    ]
+    assert commands[2][15:21] == [
         "-o",
         "BrCutLabel=1",
         "-o",
@@ -1088,10 +1122,12 @@ def test_print_supports_quality_option_named_quality(
             )
         if cmd[:4] == ["sudo", "/usr/sbin/lpadmin", "-p", "QL700"]:
             assert "orientation-requested=3" in cmd
+            assert_neutral_print_options(cmd)
             assert cmd[-1] == "Quality=BrSpeed"
             return completed(cmd, stdout="applied\n")
         if cmd[:2] == ["lp", "-d"]:
             assert "orientation-requested=3" in cmd
+            assert_neutral_print_options(cmd)
             return completed(cmd, stdout="request id is QL700-1\n")
         raise AssertionError(f"Unexpected command: {cmd}")
 
@@ -1159,11 +1195,17 @@ def test_print_auto_switches_continuous_stock_to_fit_loaded_roll(
         "-p",
         "QL700",
         "-o",
-        "PageSize=62X1",
+        "PageSize=62x350",
         "-o",
-        "media=62X1",
+        "media=62x350",
         "-o",
         "orientation-requested=4",
+        "-o",
+        "fit-to-page=false",
+        "-o",
+        "scaling=100",
+        "-o",
+        "number-up=1",
         "-o",
         "BrCutLabel=1",
         "-o",
@@ -1173,9 +1215,17 @@ def test_print_auto_switches_continuous_stock_to_fit_loaded_roll(
     ]
     assert commands[2][5:15] == [
         "-o",
-        "media=62X1",
+        "media=62x350",
         "-o",
         "orientation-requested=4",
+        "-o",
+        "fit-to-page=false",
+        "-o",
+        "scaling=100",
+        "-o",
+        "number-up=1",
+    ]
+    assert commands[2][15:21] == [
         "-o",
         "BrCutLabel=1",
         "-o",
@@ -1235,10 +1285,13 @@ def test_print_prefers_exact_roll_width_when_both_continuous_orientations_fit(
     assert "size: 22mm 60.98mm;" in captured["html"]
     assert "width: 22mm;" in captured["html"]
     assert "height: 60.98mm;" in captured["html"]
-    assert "PageSize=61.98X1" in commands[1]
-    assert "media=61.98X1" in commands[1]
+    assert "PageSize=61.98x22" in commands[1]
+    assert "media=61.98x22" in commands[1]
     assert "orientation-requested=4" in commands[1]
+    assert_neutral_print_options(commands[1])
+    assert "media=61.98x22" in commands[2]
     assert "orientation-requested=4" in commands[2]
+    assert_neutral_print_options(commands[2])
 
 
 def test_print_sets_landscape_orientation_request_for_landscape_jobs(
@@ -1288,8 +1341,13 @@ def test_print_sets_landscape_orientation_request_for_landscape_jobs(
     )
 
     assert response.status_code == 200
+    assert "PageSize=62x40" in commands[1]
+    assert "media=62x40" in commands[1]
     assert "orientation-requested=3" in commands[1]
+    assert_neutral_print_options(commands[1])
+    assert "media=62x40" in commands[2]
     assert "orientation-requested=3" in commands[2]
+    assert_neutral_print_options(commands[2])
 
 
 def test_print_rejects_unsupported_cut_value(

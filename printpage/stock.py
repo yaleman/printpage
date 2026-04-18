@@ -27,6 +27,7 @@ class ResolvedPrintLayout:
     content_width_mm: float
     content_height_mm: float
     media_width_mm: float
+    media_length_mm: float
     is_continuous_roll_media: bool
     fit_mode: FitMode
     selected_orientation: str
@@ -60,6 +61,7 @@ def resolve_preview_layout(profile: LabelProfileInput) -> ResolvedPrintLayout:
         content_width_mm=content_width_mm,
         content_height_mm=content_height_mm,
         media_width_mm=content_width_mm,
+        media_length_mm=content_height_mm,
         is_continuous_roll_media=False,
         fit_mode="fits_selected",
         selected_orientation=profile.orientation,
@@ -222,6 +224,9 @@ def resolve_print_layout(
         rendered_content_width_mm = content_width_mm
         rendered_content_height_mm = content_height_mm
         uses_page_height_for_media_width = compatibility.auto_switched_orientation
+        media_length_mm = (
+            content_width_mm if uses_page_height_for_media_width else content_height_mm
+        )
         media_axis_value = content_height_mm if uses_page_height_for_media_width else content_width_mm
         rendered_media_axis = stock_width_mm
 
@@ -241,6 +246,7 @@ def resolve_print_layout(
         page_height_mm = stock_length_mm or content_height_mm
         rendered_content_width_mm = content_width_mm
         rendered_content_height_mm = content_height_mm
+        media_length_mm = page_height_mm
 
     return ResolvedPrintLayout(
         page_width_mm=page_width_mm,
@@ -248,6 +254,7 @@ def resolve_print_layout(
         content_width_mm=rendered_content_width_mm,
         content_height_mm=rendered_content_height_mm,
         media_width_mm=stock_width_mm if stock_is_continuous else page_width_mm,
+        media_length_mm=media_length_mm,
         is_continuous_roll_media=stock_is_continuous,
         fit_mode=compatibility.fit_mode,
         selected_orientation=compatibility.selected_orientation,

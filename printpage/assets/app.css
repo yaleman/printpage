@@ -110,6 +110,10 @@
     @apply flex items-center;
   }
 
+  .app-header__desktop-only:empty {
+    @apply hidden;
+  }
+
   .app-header__menu-button {
     @apply hidden h-9 w-9 px-0;
   }
@@ -164,6 +168,13 @@
     @apply flex flex-col gap-3;
   }
 
+  .nav-drawer__section > a,
+  .nav-drawer__section > div > a,
+  .nav-drawer__section > button,
+  .nav-drawer__section > div > button {
+    @apply w-full;
+  }
+
   .editor-tab-button--preview {
     @apply hidden;
   }
@@ -202,6 +213,10 @@
     @apply gap-2 px-3;
   }
 
+  .app-header__brand {
+    @apply gap-2;
+  }
+
   .app-header__profile-slot {
     @apply hidden;
   }
@@ -216,6 +231,10 @@
 
   .app-header__actions .nav-button {
     @apply px-2.5 text-xs;
+  }
+
+  .app-header__actions {
+    @apply gap-1.5;
   }
 
   .app-header__settings-label--desktop {

@@ -132,6 +132,9 @@ const drawerQueueStatusSlot = requireElement<HTMLElement>(
 );
 const deleteButtonSlot = requireElement<HTMLElement>("delete-button-slot");
 const drawerDeleteSlot = requireElement<HTMLElement>("drawer-delete-slot");
+const settingsLink = requireElement<HTMLElement>("settings-link");
+const settingsLinkSlot = requireElement<HTMLElement>("settings-link-slot");
+const drawerSettingsSlot = requireElement<HTMLElement>("drawer-settings-slot");
 const generalStatusEl = requireElement<HTMLElement>("general-status");
 const previewStatusEl = requireElement<HTMLElement>("preview-status");
 const previewHintEl = requireElement<HTMLElement>("preview-hint");
@@ -237,6 +240,10 @@ function syncDrawerNodes(): void {
 	moveElementToSlot(
 		deleteButton,
 		isCompactLayout ? drawerDeleteSlot : deleteButtonSlot,
+	);
+	moveElementToSlot(
+		settingsLink,
+		isCompactLayout ? drawerSettingsSlot : settingsLinkSlot,
 	);
 }
 

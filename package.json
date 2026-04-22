@@ -3,6 +3,7 @@
 		"@biomejs/biome": "^2.4.9",
 		"@hey-api/client-axios": "^0.9.1",
 		"@hey-api/openapi-ts": "^0.94.5",
+		"@playwright/test": "^1.59.1",
 		"@tailwindcss/cli": "^4.2.2",
 		"esbuild": "^0.27.4",
 		"tailwindcss": "^4.2.2",
@@ -17,6 +18,7 @@
 		"export:openapi": "uv run python scripts/export_openapi.py",
 		"generate:client": "rm -rf ./frontend/client && pnpm exec openapi-ts -i ./frontend/openapi.json -o ./frontend/client -c @hey-api/client-axios",
 		"test:frontend": "pnpm exec esbuild frontend/src/queueTroubleshooting.test.ts --bundle --platform=node --format=esm --outfile=dist/queueTroubleshooting.test.mjs && node dist/queueTroubleshooting.test.mjs",
+		"test:playwright": "pnpm exec playwright test",
 		"typecheck:frontend": "pnpm exec tsc --noEmit",
 		"watch:css": "pnpm exec tailwindcss -i ./printpage/assets/app.css -o ./printpage/static/app.css --watch",
 		"watch:js": "pnpm exec esbuild frontend/src/app.ts frontend/src/config.ts --bundle --format=iife --platform=browser --target=es2020 --outdir=printpage/static --entry-names=[name] --watch"

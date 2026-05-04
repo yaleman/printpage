@@ -1,4 +1,5 @@
 from functools import lru_cache
+import math
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,7 @@ DYNAMIC_ROW_MARGIN_MM = 1.0
 ROW_GAP_MM = 1.0
 POINTS_PER_MM = 72 / 25.4
 MAX_DYNAMIC_FONT_PT = 240
+ITALIC_SKEW_DEGREES = 12
 
 templates = Environment(
     loader=FileSystemLoader(str(TEMPLATES_DIR)),
@@ -110,6 +112,13 @@ def measured_text_width(text: str, size: int, bold: bool, italic: bool) -> int:
     return max(right - left, 1)
 
 
+def dynamic_text_width(text: str, size: int, bold: bool, italic: bool) -> float:
+    width = float(measured_text_width(text, size, bold, italic))
+    if italic:
+        width += size * 1.1 * math.tan(math.radians(ITALIC_SKEW_DEGREES))
+    return width
+
+
 def normalize_dynamic_text(text: str) -> str:
     return " ".join(text.split()) or " "
 
@@ -131,7 +140,7 @@ def dynamic_font_size_pt(
 
     while low <= high:
         size = (low + high) // 2
-        if measured_text_width(measured_text, size, bold, italic) <= target_width_pt:
+        if dynamic_text_width(measured_text, size, bold, italic) <= target_width_pt:
             best = size
             low = size + 1
         else:

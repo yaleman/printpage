@@ -90,6 +90,10 @@
       font-size: 8pt;
     }
 
+    .row--dynamic {
+      white-space: nowrap;
+    }
+
     .row--bold {
       font-weight: 700;
     }
@@ -125,7 +129,7 @@
                 {% endif %}
                 <div class="rows">
                     {% for row in rows %}
-                    <div class="row row--{{ row.level }} row--{{ row.alignment }}{% if row.bold %} row--bold{% endif %}{% if row.italic %} row--italic{% endif %}">{{ row.text }}</div>
+                    <div class="row row--{{ row.level }} row--{{ row.alignment }}{% if row.bold %} row--bold{% endif %}{% if row.italic %} row--italic{% endif %}"{% if row.dynamic_font_size_pt %} style="font-size: {{ row.dynamic_font_size_pt }}pt;"{% endif %}>{{ row.text }}</div>
                     {% endfor %}
                 </div>
             </div>

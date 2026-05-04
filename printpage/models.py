@@ -15,7 +15,7 @@ DEFAULT_QUANTITY = 1
 DEFAULT_BORDER_THICKNESS_MM = 0.5
 DEFAULT_BORDER_INSET_MM = 1.0
 DEFAULT_BORDER_RADIUS_MM = 1.5
-ROW_LEVELS = {"normal", "h1", "h2", "h3", "h4", "h5", "h6"}
+ROW_LEVELS = {"normal", "dynamic", "h1", "h2", "h3", "h4", "h5", "h6"}
 ROW_ALIGNMENTS = {"left", "center", "right", "justify"}
 ORIENTATIONS = {"portrait", "landscape"}
 

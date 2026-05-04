@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -287,6 +288,7 @@ def test_frontend_editor_source_tracks_dirty_state_and_delete_confirmation() -> 
     assert 'id="queue-status-indicator"' in template
     assert 'id="queue-status-text"' in template
     assert 'data-row-style-controls' in template
+    assert 'data-row-level="dynamic"' in template
     style_controls_index = template.index('data-row-style-controls')
     text_area_index = template.index('id="row-text"')
     assert style_controls_index < template.index('id="row-bold-button"') < text_area_index
@@ -1024,6 +1026,123 @@ def test_labels_pdf_renders_italic_rows_with_visible_slant(
     assert 'row--normal row--center row--italic' in captured["html"]
 
 
+def dynamic_font_size(html: str) -> float:
+    match = re.search(r'row--dynamic[^"]*" style="font-size: ([0-9.]+)pt;"', html)
+    assert match is not None
+    return float(match.group(1))
+
+
+def test_labels_pdf_renders_dynamic_row_with_computed_font_size(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, str] = {}
+
+    def fake_html_to_pdf_bytes(html: str) -> bytes:
+        captured["html"] = html
+        return b"%PDF-test"
+
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
+
+    response = client.post(
+        "/labels.pdf",
+        json=default_profile_payload(
+            rows=[
+                {
+                    "text": "FITS WIDTH",
+                    "level": "dynamic",
+                    "bold": True,
+                    "italic": False,
+                    "alignment": "center",
+                }
+            ],
+            quantity=1,
+        ),
+    )
+
+    assert response.status_code == 200
+    assert 'row--dynamic row--center row--bold' in captured["html"]
+    assert "white-space: nowrap;" in captured["html"]
+    assert dynamic_font_size(captured["html"]) > 0
+
+
+def test_labels_pdf_dynamic_font_size_shrinks_for_longer_text(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_html: list[str] = []
+
+    def fake_html_to_pdf_bytes(html: str) -> bytes:
+        captured_html.append(html)
+        return b"%PDF-test"
+
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
+
+    for text in ["SHORT", "A MUCH LONGER DYNAMIC LABEL VALUE"]:
+        response = client.post(
+            "/labels.pdf",
+            json=default_profile_payload(
+                rows=[
+                    {
+                        "text": text,
+                        "level": "dynamic",
+                        "bold": False,
+                        "italic": False,
+                        "alignment": "center",
+                    }
+                ],
+                quantity=1,
+            ),
+        )
+        assert response.status_code == 200
+
+    short_size = dynamic_font_size(captured_html[0])
+    long_size = dynamic_font_size(captured_html[1])
+    assert long_size < short_size
+
+
+def test_labels_pdf_dynamic_font_size_accounts_for_border_inset(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_html: list[str] = []
+
+    def fake_html_to_pdf_bytes(html: str) -> bytes:
+        captured_html.append(html)
+        return b"%PDF-test"
+
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
+    row = {
+        "text": "BORDER WIDTH TEST",
+        "level": "dynamic",
+        "bold": False,
+        "italic": False,
+        "alignment": "center",
+    }
+
+    plain_response = client.post(
+        "/labels.pdf",
+        json=default_profile_payload(rows=[row], quantity=1),
+    )
+    bordered_response = client.post(
+        "/labels.pdf",
+        json=default_profile_payload(
+            rows=[row],
+            border={
+                "enabled": True,
+                "thickness_mm": 0.7,
+                "inset_mm": 3.0,
+                "radius_mm": 2.5,
+            },
+            quantity=1,
+        ),
+    )
+
+    assert plain_response.status_code == 200
+    assert bordered_response.status_code == 200
+    assert dynamic_font_size(captured_html[1]) < dynamic_font_size(captured_html[0])
+
+
 def test_print_applies_profile_then_submits_lp_job(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -1449,6 +1568,31 @@ def test_profiles_require_at_least_one_row(
 
     assert empty_rows.status_code == 422
     assert blank_text.status_code == 200
+
+
+def test_profiles_reject_unknown_row_level(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", lambda html: b"%PDF-test")
+
+    response = client.post(
+        "/labels.pdf",
+        json=default_profile_payload(
+            rows=[
+                {
+                    "text": "hello",
+                    "level": "massive",
+                    "bold": False,
+                    "italic": False,
+                    "alignment": "center",
+                }
+            ],
+            quantity=1,
+        ),
+    )
+
+    assert response.status_code == 422
 
 
 def test_invalid_saved_state_falls_back_to_default_profile(

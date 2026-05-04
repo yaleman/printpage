@@ -1,4 +1,5 @@
 import json
+import math
 import re
 import subprocess
 from pathlib import Path
@@ -1032,6 +1033,10 @@ def dynamic_font_size(html: str) -> float:
     return float(match.group(1))
 
 
+def mm_to_pt(value: float) -> float:
+    return value * 72 / 25.4
+
+
 def test_labels_pdf_renders_dynamic_row_with_computed_font_size(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -1141,6 +1146,47 @@ def test_labels_pdf_dynamic_font_size_accounts_for_border_inset(
     assert plain_response.status_code == 200
     assert bordered_response.status_code == 200
     assert dynamic_font_size(captured_html[1]) < dynamic_font_size(captured_html[0])
+
+
+def test_labels_pdf_dynamic_italic_font_size_accounts_for_skew_width(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, str] = {}
+    text = "IIIIIIII"
+
+    def fake_html_to_pdf_bytes(html: str) -> bytes:
+        captured["html"] = html
+        return b"%PDF-test"
+
+    monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
+
+    response = client.post(
+        "/labels.pdf",
+        json=default_profile_payload(
+            rows=[
+                {
+                    "text": text,
+                    "level": "dynamic",
+                    "bold": False,
+                    "italic": True,
+                    "alignment": "center",
+                }
+            ],
+            quantity=1,
+        ),
+    )
+
+    assert response.status_code == 200
+    font_size = dynamic_font_size(captured["html"])
+    text_width = printpage.rendering.measured_text_width(
+        text,
+        int(font_size),
+        bold=False,
+        italic=True,
+    )
+    skew_overhang = font_size * 1.1 * math.tan(math.radians(12))
+    assert text_width + skew_overhang <= mm_to_pt(60)
 
 
 def test_print_applies_profile_then_submits_lp_job(

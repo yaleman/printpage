@@ -74,6 +74,12 @@ This container is aimed at local app startup and PDF preview. Real printer admin
 
 The Docker image now also starts a local CUPS daemon and seeds a file-backed fake `Brother_QL700` queue for integration testing. Print jobs written inside the container are sent to `/tmp/printpage-jobs/label-output.pdf` by default.
 
+## Rendering Notes
+
+Label rendering is documented in [docs/dynamic-fitting.md](docs/dynamic-fitting.md).
+
+Dynamic rows are fitted server-side before `templates/labels/label.html` is rendered to PDF. The fitting code uses WeasyPrint layout metrics, not browser measurement or Pillow, so preview PDFs and real print PDFs use the same font selection, CSS units, bold weight, and italic face.
+
 ## Printer Administration
 
 The app is designed to manage a local CUPS printer queue.

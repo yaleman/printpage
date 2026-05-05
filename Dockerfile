@@ -13,6 +13,7 @@ RUN apt-get update \
     cups-client \
     cups-daemon \
     fonts-dejavu-core \
+    fonts-dejavu-extra \
     libatlas3-base \
     libcairo2 \
     libgdk-pixbuf-2.0-0 \
@@ -24,7 +25,7 @@ RUN apt-get update \
     sudo \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir "uvicorn[standard]" fastapi pydantic pillow jinja2 httpx click weasyprint
+RUN pip install --no-cache-dir "uvicorn[standard]" fastapi pydantic jinja2 httpx click weasyprint
 
 FROM apt
 

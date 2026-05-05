@@ -1,5 +1,4 @@
 import json
-import math
 import re
 import subprocess
 from pathlib import Path
@@ -993,7 +992,7 @@ def test_labels_pdf_renders_optional_border(
     assert "border-radius: 2.5mm;" in captured["html"]
 
 
-def test_labels_pdf_renders_italic_rows_with_visible_slant(
+def test_labels_pdf_renders_italic_rows_with_real_italic_font(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1023,7 +1022,8 @@ def test_labels_pdf_renders_italic_rows_with_visible_slant(
 
     assert response.status_code == 200
     assert '"DejaVu Sans", "Liberation Sans", "Noto Sans", Arial, sans-serif' in captured["html"]
-    assert "transform: skewX(-12deg);" in captured["html"]
+    assert "font-style: italic;" in captured["html"]
+    assert "transform: skewX" not in captured["html"]
     assert 'row--normal row--center row--italic' in captured["html"]
 
 
@@ -1033,8 +1033,72 @@ def dynamic_font_size(html: str) -> float:
     return float(match.group(1))
 
 
-def mm_to_pt(value: float) -> float:
-    return value * 72 / 25.4
+def stub_weasyprint_text_metrics(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_measure_weasyprint_text(
+        text: str,
+        size_pt: int,
+        bold: bool,
+        italic: bool,
+    ) -> printpage.rendering.TextMetrics:
+        style_width = 0.74 if bold else 0.64
+        if italic:
+            style_width += 0.04
+        return printpage.rendering.TextMetrics(
+            width_px=max(len(text), 1) * size_pt * style_width,
+            height_px=size_pt * 1.45,
+            font_style="italic" if italic else "normal",
+            font_weight=700 if bold else 400,
+        )
+
+    monkeypatch.setattr(
+        printpage.rendering,
+        "measure_weasyprint_text",
+        fake_measure_weasyprint_text,
+    )
+
+
+def test_dynamic_font_size_uses_weasyprint_text_metrics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, int, bool, bool]] = []
+
+    def fake_measure_weasyprint_text(
+        text: str,
+        size_pt: int,
+        bold: bool,
+        italic: bool,
+    ) -> printpage.rendering.TextMetrics:
+        calls.append((text, size_pt, bold, italic))
+        return printpage.rendering.TextMetrics(
+            width_px=size_pt * 4,
+            height_px=size_pt * 2,
+            font_style="italic" if italic else "normal",
+            font_weight=700 if bold else 400,
+        )
+
+    monkeypatch.setattr(
+        printpage.rendering,
+        "measure_weasyprint_text",
+        fake_measure_weasyprint_text,
+    )
+
+    font_size = printpage.rendering.dynamic_font_size_pt(
+        text="  New   label  ",
+        bold=True,
+        italic=True,
+        available_width_mm=20,
+        row_height_mm=20,
+    )
+
+    assert font_size == 18
+    assert all(call[0] == "New label" for call in calls)
+    assert all(call[2:] == (True, True) for call in calls)
+
+
+def test_docker_image_installs_dejavu_italic_font_package() -> None:
+    dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+
+    assert "fonts-dejavu-extra" in dockerfile
 
 
 def test_labels_pdf_renders_dynamic_row_with_computed_font_size(
@@ -1042,6 +1106,7 @@ def test_labels_pdf_renders_dynamic_row_with_computed_font_size(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, str] = {}
+    stub_weasyprint_text_metrics(monkeypatch)
 
     def fake_html_to_pdf_bytes(html: str) -> bytes:
         captured["html"] = html
@@ -1076,6 +1141,7 @@ def test_labels_pdf_dynamic_font_size_shrinks_for_longer_text(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured_html: list[str] = []
+    stub_weasyprint_text_metrics(monkeypatch)
 
     def fake_html_to_pdf_bytes(html: str) -> bytes:
         captured_html.append(html)
@@ -1111,6 +1177,7 @@ def test_labels_pdf_dynamic_font_size_accounts_for_border_inset(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured_html: list[str] = []
+    stub_weasyprint_text_metrics(monkeypatch)
 
     def fake_html_to_pdf_bytes(html: str) -> bytes:
         captured_html.append(html)
@@ -1148,18 +1215,38 @@ def test_labels_pdf_dynamic_font_size_accounts_for_border_inset(
     assert dynamic_font_size(captured_html[1]) < dynamic_font_size(captured_html[0])
 
 
-def test_labels_pdf_dynamic_italic_font_size_accounts_for_skew_width(
+def test_labels_pdf_dynamic_italic_font_size_fits_real_italic_text_width(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, str] = {}
     text = "IIIIIIII"
+    metric_calls: list[tuple[str, int, bool, bool]] = []
+
+    def fake_measure_weasyprint_text(
+        text: str,
+        size_pt: int,
+        bold: bool,
+        italic: bool,
+    ) -> printpage.rendering.TextMetrics:
+        metric_calls.append((text, size_pt, bold, italic))
+        return printpage.rendering.TextMetrics(
+            width_px=len(text) * size_pt * 0.7,
+            height_px=size_pt * 1.35,
+            font_style="italic" if italic else "normal",
+            font_weight=700 if bold else 400,
+        )
 
     def fake_html_to_pdf_bytes(html: str) -> bytes:
         captured["html"] = html
         return b"%PDF-test"
 
     monkeypatch.setattr(printpage, "html_to_pdf_bytes", fake_html_to_pdf_bytes)
+    monkeypatch.setattr(
+        printpage.rendering,
+        "measure_weasyprint_text",
+        fake_measure_weasyprint_text,
+    )
 
     response = client.post(
         "/labels.pdf",
@@ -1179,14 +1266,64 @@ def test_labels_pdf_dynamic_italic_font_size_accounts_for_skew_width(
 
     assert response.status_code == 200
     font_size = dynamic_font_size(captured["html"])
-    text_width = printpage.rendering.measured_text_width(
-        text,
-        int(font_size),
-        bold=False,
-        italic=True,
+    assert metric_calls
+    assert all(call[2:] == (False, True) for call in metric_calls)
+    assert len(text) * font_size * 0.7 <= 60 * printpage.rendering.CSS_PIXELS_PER_MM
+
+
+def test_weasyprint_dynamic_bold_italic_text_fits_label() -> None:
+    try:
+        import weasyprint
+    except OSError as exc:
+        pytest.skip(f"WeasyPrint native libraries unavailable: {exc}")
+    profile = models.LabelProfileInput.model_validate(
+        default_profile_payload(
+            rows=[
+                {
+                    "text": "New label",
+                    "level": "dynamic",
+                    "bold": True,
+                    "italic": True,
+                    "alignment": "center",
+                }
+            ],
+            width_mm=61.98,
+            height_mm=22,
+            quantity=1,
+        )
     )
-    skew_overhang = font_size * 1.1 * math.tan(math.radians(12))
-    assert text_width + skew_overhang <= mm_to_pt(60)
+
+    try:
+        html = printpage.render_label_html(
+            profile,
+            stock.resolve_preview_layout(profile),
+        )
+        document = weasyprint.HTML(string=html).render()
+    except OSError as exc:
+        pytest.skip(f"WeasyPrint native libraries unavailable: {exc}")
+
+    text_boxes: list[object] = []
+
+    def collect_text_boxes(box: object) -> None:
+        if getattr(box, "text", "") == "New label":
+            text_boxes.append(box)
+        for child in getattr(box, "children", []):
+            collect_text_boxes(child)
+
+    page = document.pages[0]
+    collect_text_boxes(page._page_box)
+
+    assert text_boxes
+    text_box = text_boxes[0]
+    text_left = float(getattr(text_box, "position_x"))
+    text_width = float(getattr(text_box, "width"))
+    text_style = getattr(text_box, "style")
+    font_size = dynamic_font_size(html)
+    assert font_size < 38
+    assert text_left >= 0
+    assert text_left + text_width <= page.width
+    assert text_style["font_style"] == "italic"
+    assert text_style["font_weight"] == 700
 
 
 def test_print_applies_profile_then_submits_lp_job(

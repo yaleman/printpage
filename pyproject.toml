@@ -2,9 +2,10 @@
 name = "printpage"
 version = "0.1.1"
 description = "A simple web server for printing test pages on label printers"
-authors = [{ name = "James Hodgkinson", email = "james@terminaloutcomes.com" }]
+authors = [
+    { name = "James Hodgkinson", email = "james@terminaloutcomes.com" },
+]
 requires-python = ">=3.12"
-
 dependencies = [
     "fastapi>=0.135.2",
     "uvicorn>=0.42.0",
@@ -12,17 +13,27 @@ dependencies = [
     "weasyprint>=68.1",
     "uvicorn[standard]>=0.42.0",
 ]
-
+readme = "README.md"
 
 [build-system]
-requires = ["hatchling"]
+requires = [
+    "hatchling",
+]
 build-backend = "hatchling.build"
 
 [tool.hatch.build]
-exclude = ["tests", "docs", "AGENTS.md", "printpage.sh", ".gitignore"]
+exclude = [
+    "tests",
+    "docs",
+    "AGENTS.md",
+    "printpage.sh",
+    ".gitignore",
+]
 
 [tool.hatch.build.targets.wheel]
-packages = ["printpage"]
+packages = [
+    "printpage",
+]
 
 [dependency-groups]
 dev = [
@@ -31,4 +42,3 @@ dev = [
     "ruff>=0.15.8",
     "ty>=0.0.26",
 ]
-

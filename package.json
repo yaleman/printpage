@@ -24,6 +24,6 @@
 		"watch:js": "pnpm exec esbuild frontend/src/app.ts frontend/src/config.ts --bundle --format=iife --platform=browser --target=es2020 --outdir=printpage/static --entry-names=[name] --watch"
 	},
 	"dependencies": {
-		"axios": "^1.16.0"
+		"axios": "^1.18.0"
 	}
 }

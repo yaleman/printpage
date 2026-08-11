@@ -4,7 +4,7 @@ name: Dependabot auto-approval and auto-merge
 
 permissions:
   contents: write
-  workflows: write
+  actions: write
   # Needed so Dependabot auto-merge can stay enabled on PRs that touch workflow files.
   pull-requests: write
 

@@ -10,7 +10,7 @@ DEFAULT_QUEUE_NAME = "Brother_QL700"
 
 
 def run_command(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, capture_output=True, text=True)
+    return subprocess.run(cmd, capture_output=True, text=True, check=False)
 
 
 def parse_lpstat_destinations(output: str) -> tuple[list[str], str | None]:

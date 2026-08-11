@@ -13,6 +13,7 @@ run = [
 depends = ["frontend", "ruff", "ty", "pytest"]
 
 [tasks.frontend]
+env = { "CI" = "true" }
 description = "Install frontend tooling, generate API artifacts, build assets, and run frontend checks"
 run = [
   "pnpm install --frozen-lockfile",
@@ -25,10 +26,7 @@ run = [
 
 [tasks.build_css]
 description = "Install frontend tooling and compile Tailwind CSS"
-run = [
-  "pnpm install --frozen-lockfile",
-  "pnpm build:css",
-]
+run = ["pnpm install --frozen-lockfile", "pnpm build:css"]
 
 [tasks.ruff]
 description = "Run ruff for linting and formatting"
@@ -63,15 +61,24 @@ inkscape printpage/static/${source}.svg \
 
 [tasks.favicon-192]
 description = "Generate 192x192 favicon"
-run = ["mise run favicon_inner favicon 192", "mise run favicon_inner favicon2 192"]
+run = [
+  "mise run favicon_inner favicon 192",
+  "mise run favicon_inner favicon2 192",
+]
 
 [tasks.favicon-128]
 description = "Generate 128 favicon"
-run = ["mise run favicon_inner favicon 128", "mise run favicon_inner favicon2 128"]
+run = [
+  "mise run favicon_inner favicon 128",
+  "mise run favicon_inner favicon2 128",
+]
 
 [tasks.favicon-512]
 description = "Generate 512x512 favicon"
-run = ["mise run favicon_inner favicon 512", "mise run favicon_inner favicon2 512"]
+run = [
+  "mise run favicon_inner favicon 512",
+  "mise run favicon_inner favicon2 512",
+]
 
 
 [tasks.favicon]
@@ -79,5 +86,5 @@ description = "Generate favicons in multiple sizes for better compatibility with
 depends = ["favicon-128", "favicon-192", "favicon-512"]
 run = [
   "cp printpage/static/favicon-128.png printpage/static/favicon.png",
-  "cp printpage/static/favicon2-128.png printpage/static/favicon2.png"
+  "cp printpage/static/favicon2-128.png printpage/static/favicon2.png",
 ]

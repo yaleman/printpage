@@ -194,14 +194,22 @@ def test_resolve_stock_compatibility_for_continuous_and_fixed_stock() -> None:
     assert continuous_auto_switched.fit_mode == "fits_auto_switched"
     assert continuous_auto_switched.applied_orientation == "landscape"
     assert continuous_auto_switched.auto_switched_orientation is True
-    assert "switch to landscape automatically" in (continuous_auto_switched.message or "")
+    assert "switch to landscape automatically" in (
+        continuous_auto_switched.message or ""
+    )
 
     assert continuous_narrow.fits_loaded_stock is True
     assert continuous_narrow.fit_mode == "fits_selected"
     assert continuous_narrow.message is None
 
-    assert continuous_exact_width_match_prefers_switched_orientation.fits_loaded_stock is True
-    assert continuous_exact_width_match_prefers_switched_orientation.fit_mode == "fits_auto_switched"
+    assert (
+        continuous_exact_width_match_prefers_switched_orientation.fits_loaded_stock
+        is True
+    )
+    assert (
+        continuous_exact_width_match_prefers_switched_orientation.fit_mode
+        == "fits_auto_switched"
+    )
     assert (
         continuous_exact_width_match_prefers_switched_orientation.applied_orientation
         == "landscape"
@@ -242,8 +250,8 @@ def test_index_loads_compiled_assets(client: TestClient) -> None:
 
     assert response.status_code == 200
     body = response.text
-    assert '/static/app.css' in body
-    assert '/static/app.js' in body
+    assert "/static/app.css" in body
+    assert "/static/app.js" in body
 
 
 def test_static_assets_are_served(client: TestClient) -> None:
@@ -287,12 +295,18 @@ def test_frontend_editor_source_tracks_dirty_state_and_delete_confirmation() -> 
     assert "startQueueStatusPolling" in source
     assert 'id="queue-status-indicator"' in template
     assert 'id="queue-status-text"' in template
-    assert 'data-row-style-controls' in template
+    assert "data-row-style-controls" in template
     assert 'data-row-level="dynamic"' in template
-    style_controls_index = template.index('data-row-style-controls')
+    style_controls_index = template.index("data-row-style-controls")
     text_area_index = template.index('id="row-text"')
-    assert style_controls_index < template.index('id="row-bold-button"') < text_area_index
-    assert style_controls_index < template.index('data-row-alignment="justify"') < text_area_index
+    assert (
+        style_controls_index < template.index('id="row-bold-button"') < text_area_index
+    )
+    assert (
+        style_controls_index
+        < template.index('data-row-alignment="justify"')
+        < text_area_index
+    )
 
 
 def test_config_source_tracks_stock_controls() -> None:
@@ -315,7 +329,9 @@ def test_config_source_tracks_stock_controls() -> None:
     assert 'id="queue-defaults"' in template
     assert 'id="queue-troubleshooting"' in template
     assert 'id="queue-status-indicator"' in template
-    assert template.index('id="queue-troubleshooting"') < template.index('id="config-form"')
+    assert template.index('id="queue-troubleshooting"') < template.index(
+        'id="config-form"'
+    )
 
 
 def test_docker_sources_seed_fake_cups_queue() -> None:
@@ -330,7 +346,7 @@ def test_docker_sources_seed_fake_cups_queue() -> None:
     assert "FAKE_QUEUE_NAME" in entrypoint
     assert "cups-files.conf" in entrypoint
     assert "FileDevice Yes" in entrypoint
-    assert 'file:$FAKE_QUEUE_OUTPUT' in entrypoint
+    assert "file:$FAKE_QUEUE_OUTPUT" in entrypoint
     assert "fake-brother-ql700.ppd" in entrypoint
     assert "*OpenUI *BrCutLabel/Cut Label: PickOne" in ppd
     assert '*cupsFilter2: "application/pdf application/pdf 0 -"' in ppd
@@ -346,21 +362,36 @@ def test_openapi_schema_hides_html_pages_and_types_api_responses(
 
     assert "/" not in payload["paths"]
     assert "/config" not in payload["paths"]
-    assert payload["paths"]["/api/state"]["get"]["responses"]["200"]["content"][
-        "application/json"
-    ]["schema"]["$ref"] == "#/components/schemas/AppState"
-    assert payload["paths"]["/api/config"]["get"]["responses"]["200"]["content"][
-        "application/json"
-    ]["schema"]["$ref"] == "#/components/schemas/QueueState"
-    assert payload["paths"]["/api/config/defaults"]["get"]["responses"]["200"]["content"][
-        "application/json"
-    ]["schema"]["additionalProperties"]["type"] == "string"
-    assert payload["paths"]["/api/queue-status"]["get"]["responses"]["200"]["content"][
-        "application/json"
-    ]["schema"]["$ref"] == "#/components/schemas/QueueStatus"
-    assert payload["paths"]["/print"]["post"]["responses"]["200"]["content"][
-        "application/json"
-    ]["schema"]["$ref"] == "#/components/schemas/PrintJobResult"
+    assert (
+        payload["paths"]["/api/state"]["get"]["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]["$ref"]
+        == "#/components/schemas/AppState"
+    )
+    assert (
+        payload["paths"]["/api/config"]["get"]["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]["$ref"]
+        == "#/components/schemas/QueueState"
+    )
+    assert (
+        payload["paths"]["/api/config/defaults"]["get"]["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]["additionalProperties"]["type"]
+        == "string"
+    )
+    assert (
+        payload["paths"]["/api/queue-status"]["get"]["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]["$ref"]
+        == "#/components/schemas/QueueStatus"
+    )
+    assert (
+        payload["paths"]["/print"]["post"]["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]["$ref"]
+        == "#/components/schemas/PrintJobResult"
+    )
     assert payload["paths"]["/labels.pdf"]["post"]["responses"]["200"]["content"] == {
         "application/pdf": {}
     }
@@ -559,7 +590,9 @@ def test_get_config_defaults_returns_saved_lpoptions(
 
     monkeypatch.setattr(printer, "run_command", fake_run_command)
 
-    response = client.get("/api/config/defaults", params={"queue_name": "Brother_QL700"})
+    response = client.get(
+        "/api/config/defaults", params={"queue_name": "Brother_QL700"}
+    )
 
     assert response.status_code == 200
     assert response.json() == {
@@ -701,7 +734,7 @@ def test_labels_pdf_uses_authored_profile_dimensions_for_preview(
     assert "size: 50mm 30mm;" in captured["html"]
     assert "margin: 0mm;" in captured["html"]
     assert "width: 50mm;" in captured["html"]
-    assert 'row--h2 row--center row--bold' in captured["html"]
+    assert "row--h2 row--center row--bold" in captured["html"]
     assert "hello" in captured["html"]
 
 
@@ -1021,10 +1054,13 @@ def test_labels_pdf_renders_italic_rows_with_real_italic_font(
     )
 
     assert response.status_code == 200
-    assert '"DejaVu Sans", "Liberation Sans", "Noto Sans", Arial, sans-serif' in captured["html"]
+    assert (
+        '"DejaVu Sans", "Liberation Sans", "Noto Sans", Arial, sans-serif'
+        in captured["html"]
+    )
     assert "font-style: italic;" in captured["html"]
     assert "transform: skewX" not in captured["html"]
-    assert 'row--normal row--center row--italic' in captured["html"]
+    assert "row--normal row--center row--italic" in captured["html"]
 
 
 def dynamic_font_size(html: str) -> float:
@@ -1131,7 +1167,7 @@ def test_labels_pdf_renders_dynamic_row_with_computed_font_size(
     )
 
     assert response.status_code == 200
-    assert 'row--dynamic row--center row--bold' in captured["html"]
+    assert "row--dynamic row--center row--bold" in captured["html"]
     assert "white-space: nowrap;" in captured["html"]
     assert dynamic_font_size(captured["html"]) > 0
 
@@ -1315,9 +1351,9 @@ def test_weasyprint_dynamic_bold_italic_text_fits_label() -> None:
 
     assert text_boxes
     text_box = text_boxes[0]
-    text_left = float(getattr(text_box, "position_x"))
-    text_width = float(getattr(text_box, "width"))
-    text_style = getattr(text_box, "style")
+    text_left = float(text_box.position_x)  # ty: ignore[unresolved-attribute]
+    text_width = float(text_box.width)  # ty: ignore[unresolved-attribute]
+    text_style = text_box.style  # ty: ignore[unresolved-attribute]
     font_size = dynamic_font_size(html)
     assert font_size < 38
     assert text_left >= 0
@@ -1418,8 +1454,7 @@ def test_print_supports_quality_option_named_quality(
             return completed(
                 cmd,
                 stdout=(
-                    "BrCutLabel/Cut Label: *1 2\n"
-                    "Quality/Quality: *BrSpeed BrQuality\n"
+                    "BrCutLabel/Cut Label: *1 2\nQuality/Quality: *BrSpeed BrQuality\n"
                 ),
             )
         if cmd[:4] == ["sudo", "/usr/sbin/lpadmin", "-p", "QL700"]:
@@ -1436,7 +1471,9 @@ def test_print_supports_quality_option_named_quality(
     monkeypatch.setattr(printer, "run_command", fake_run_command)
     monkeypatch.setattr(printpage, "html_to_pdf_bytes", lambda html: b"%PDF-test")
 
-    response = client.post("/print", json=default_profile_payload(quality="BrSpeed", quantity=1))
+    response = client.post(
+        "/print", json=default_profile_payload(quality="BrSpeed", quantity=1)
+    )
 
     assert response.status_code == 200
 
@@ -1687,10 +1724,7 @@ def test_print_rejects_unsupported_quality_value(
         if cmd == ["lpoptions", "-p", "QL700", "-l"]:
             return completed(
                 cmd,
-                stdout=(
-                    "BrCutLabel/Cut Label: *1 2\n"
-                    "BrPriority/Quality: *BrSpeed\n"
-                ),
+                stdout=("BrCutLabel/Cut Label: *1 2\nBrPriority/Quality: *BrSpeed\n"),
             )
         raise AssertionError(f"Unexpected command: {cmd}")
 
@@ -1708,7 +1742,9 @@ def test_profile_dimensions_validate(
 ) -> None:
     monkeypatch.setattr(printpage, "html_to_pdf_bytes", lambda html: b"%PDF-test")
 
-    fixed_response = client.post("/labels.pdf", json=default_profile_payload(quantity=1))
+    fixed_response = client.post(
+        "/labels.pdf", json=default_profile_payload(quantity=1)
+    )
     long_response = client.post(
         "/labels.pdf",
         json=default_profile_payload(height_mm=100, quantity=1),
@@ -1827,7 +1863,9 @@ def test_legacy_saved_state_is_backfilled_with_default_stock(
                     {
                         "id": "legacy",
                         "name": "Legacy",
-                        "rows": [{"text": "old", "level": "normal", "alignment": "left"}],
+                        "rows": [
+                            {"text": "old", "level": "normal", "alignment": "left"}
+                        ],
                         "border": {
                             "enabled": False,
                             "thickness_mm": 0.5,

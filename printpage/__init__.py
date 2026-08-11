@@ -15,13 +15,14 @@ from .models import (
     QueueStatus,
 )
 from .printer import (
+    apply_profile_to_printer,
     get_available_queues,
     get_queue_choices,
     get_queue_defaults,
     read_queue_status,
+    submit_print_job,
 )
 from .rendering import html_to_pdf_bytes, render_label_html, templates
-from .stock import resolve_preview_layout, resolve_print_layout
 from .state import (
     create_profile,
     delete_profile,
@@ -31,7 +32,7 @@ from .state import (
     update_profile,
     update_queue,
 )
-from .printer import apply_profile_to_printer, submit_print_job
+from .stock import resolve_preview_layout, resolve_print_layout
 
 app = FastAPI()
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -120,7 +121,9 @@ def save_config(queue_config: QueueConfig) -> QueueState:
 
 
 @app.get("/api/config/options")
-def get_config_options(queue_name: str | None = Query(default=None)) -> dict[str, dict[str, str | list[str] | None]]:
+def get_config_options(
+    queue_name: str | None = Query(default=None),
+) -> dict[str, dict[str, str | list[str] | None]]:
     state = resolve_state()
     return get_queue_choices(queue_name or state.queue_name)
 

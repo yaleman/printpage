@@ -3,8 +3,15 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from .models import AppState, LabelProfile, LabelProfileInput, QueueConfig, default_profile
-from .models import DEFAULT_STOCK_LENGTH_MM, DEFAULT_STOCK_WIDTH_MM
+from .models import (
+    DEFAULT_STOCK_LENGTH_MM,
+    DEFAULT_STOCK_WIDTH_MM,
+    AppState,
+    LabelProfile,
+    LabelProfileInput,
+    QueueConfig,
+    default_profile,
+)
 from .printer import DEFAULT_QUEUE_NAME
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -76,7 +83,9 @@ def update_profile(profile_id: str, profile_input: LabelProfileInput) -> AppStat
     state = resolve_state()
     for index, profile in enumerate(state.profiles):
         if profile.id == profile_id:
-            state.profiles[index] = LabelProfile(id=profile_id, **profile_input.model_dump())
+            state.profiles[index] = LabelProfile(
+                id=profile_id, **profile_input.model_dump()
+            )
             state.selected_profile_id = profile_id
             return save_state(state)
     raise KeyError(profile_id)
